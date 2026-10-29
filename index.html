@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CandLanguage API Tester</title>
+    <title>Job API Tester</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -15,7 +15,7 @@
         }
         h1 { text-align: center; margin-bottom: 8px; }
         .subtitle { text-align: center; color: #666; margin-bottom: 24px; font-size: 14px; }
-        .container { max-width: 900px; margin: 0 auto; }
+        .container { max-width: 950px; margin: 0 auto; }
         .card {
             background: #fff;
             border-radius: 8px;
@@ -39,7 +39,7 @@
             margin-bottom: 5px;
             color: #555;
         }
-        input, select {
+        input, textarea {
             width: 100%;
             padding: 8px 10px;
             border: 1px solid #ccc;
@@ -48,7 +48,8 @@
             margin-bottom: 10px;
             font-family: inherit;
         }
-        input:focus, select:focus {
+        textarea { resize: vertical; min-height: 70px; }
+        input:focus, textarea:focus {
             outline: none;
             border-color: #4a90e2;
             box-shadow: 0 0 0 2px rgba(74,144,226,0.2);
@@ -121,72 +122,85 @@
 <body>
 
 <div class="container">
-    <h1>🌐 CandLanguage — API Tester</h1>
-    <p class="subtitle">Base: <code>http://127.0.0.1:8000</code> — Junction table with proficiency level</p>
+    <h1>💼 Job — API Tester</h1>
+    <p class="subtitle">Base: <code>http://127.0.0.1:8000</code> — Recruitment app</p>
 
     <div id="globalStatus" class="status idle">Ready.</div>
 
-    <!-- ==================== CANDIDATE LANGUAGE CRUD ==================== -->
+    <!-- ==================== JOB CRUD ==================== -->
     <div class="card">
-        <h2>🌐 Candidate Language CRUD</h2>
+        <h2>💼 Job CRUD</h2>
 
-        <button class="success" onclick="clList()">GET All Candidate Languages</button>
-        <button class="secondary" onclick="clGetById()">GET Candidate Language by ID</button>
+        <button class="success" onclick="jobList()">GET All Jobs</button>
+        <button class="secondary" onclick="jobGetById()">GET Job by ID</button>
 
         <!-- CREATE -->
         <div class="sub-section">
-            <h3>Create Candidate Language</h3>
+            <h3>Create Job</h3>
             <div class="row">
                 <div class="col">
-                    <label>Candidate ID</label>
-                    <input type="number" id="clCreateCandidateId" value="1">
+                    <label>HR ID</label>
+                    <input type="number" id="jobCreateHrId" value="1">
                 </div>
                 <div class="col">
-                    <label>Language ID</label>
-                    <input type="number" id="clCreateLangId" value="1">
-                </div>
-                <div class="col">
-                    <label>Proficiency Level</label>
-                    <select id="clCreateProficiency">
-                        <option value="basic">Basic</option>
-                        <option value="intermediate" selected>Intermediate</option>
-                        <option value="fluent">Fluent</option>
-                        <option value="native">Native</option>
-                    </select>
+                    <label>Job Title</label>
+                    <input type="text" id="jobCreateTitle" value="Python Developer">
                 </div>
             </div>
-            <div class="hint">Hint: Candidate ID from /api/candidate-profiles/, Language ID from /api/languages/</div>
-            <button class="success" onclick="clCreate()">POST Create Candidate Language</button>
+            <label>Job Description</label>
+            <textarea id="jobCreateDescription">Looking for a Django developer with 2+ years of experience.</textarea>
+            <div class="row">
+                <div class="col">
+                    <label>Required Experience (years)</label>
+                    <input type="number" step="0.1" id="jobCreateExp" value="2.5">
+                </div>
+                <div class="col">
+                    <label>Minimum Score (0-100)</label>
+                    <input type="number" step="0.01" id="jobCreateMinScore" value="65.0">
+                </div>
+                <div class="col">
+                    <label>Due Date</label>
+                    <input type="date" id="jobCreateDueDate" value="2026-12-31">
+                </div>
+            </div>
+            <div class="hint">Hint: HR ID from /api/hr-profiles/</div>
+            <button class="success" onclick="jobCreate()">POST Create Job</button>
         </div>
 
         <!-- GET / UPDATE / DELETE -->
         <div class="sub-section">
-            <h3>Get / Update / Delete by CandLanguage ID</h3>
+            <h3>Get / Update / Delete by Job ID</h3>
             <div class="row">
                 <div class="col">
-                    <label>CandLanguage ID</label>
-                    <input type="number" id="clId" value="1">
+                    <label>Job ID</label>
+                    <input type="number" id="jobId" value="1">
                 </div>
                 <div class="col">
-                    <label>New Language ID (PUT)</label>
-                    <input type="number" id="clUpdateLangId" value="2">
-                </div>
-                <div class="col">
-                    <label>New Proficiency (PUT)</label>
-                    <select id="clUpdateProficiency">
-                        <option value="">-- no change --</option>
-                        <option value="basic">Basic</option>
-                        <option value="intermediate">Intermediate</option>
-                        <option value="fluent">Fluent</option>
-                        <option value="native">Native</option>
-                    </select>
+                    <label>New Title (PUT)</label>
+                    <input type="text" id="jobUpdateTitle">
                 </div>
             </div>
-            <button onclick="clUpdate()">PUT Update Candidate Language</button>
-            <button class="danger" onclick="clDelete()">DELETE Candidate Language</button>
+            <label>New Description (PUT)</label>
+            <textarea id="jobUpdateDescription"></textarea>
+            <div class="row">
+                <div class="col">
+                    <label>New Required Exp (PUT)</label>
+                    <input type="number" step="0.1" id="jobUpdateExp">
+                </div>
+                <div class="col">
+                    <label>New Min Score (PUT)</label>
+                    <input type="number" step="0.01" id="jobUpdateMinScore">
+                </div>
+                <div class="col">
+                    <label>New Due Date (PUT)</label>
+                    <input type="date" id="jobUpdateDueDate">
+                </div>
+            </div>
+            <button onclick="jobUpdate()">PUT Update Job</button>
+            <button class="danger" onclick="jobDelete()">DELETE Job</button>
         </div>
 
-        <div id="clResponse" class="response-box"></div>
+        <div id="jobResponse" class="response-box"></div>
     </div>
 
     <!-- ==================== LOG ==================== -->
@@ -245,74 +259,86 @@ async function apiFetch(path, method = "GET", body = null) {
     }
 }
 
-// ==================== CANDIDATE LANGUAGE CRUD ====================
-async function clList() {
-    const { ok, status, data } = await apiFetch("/api/candidate-languages/", "GET");
-    showResponse("clResponse", data, ok);
-    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} candidate languages`, "success");
+// ==================== JOB CRUD ====================
+async function jobList() {
+    const { ok, status, data } = await apiFetch("/api/jobs/", "GET");
+    showResponse("jobResponse", data, ok);
+    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} jobs`, "success");
     else setGlobalStatus(`❌ Failed (${status}): ${data.message}`, "error");
 }
 
-async function clGetById() {
-    const id = document.getElementById("clId").value;
-    if (!id) { showResponse("clResponse", "CandLanguage ID required", false); return; }
-    const { ok, status, data } = await apiFetch(`/api/candidate-languages/${id}/`, "GET");
-    showResponse("clResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Fetched candidate language id=${id}`, "success");
-    else setGlobalStatus(`❌ CandLanguage id=${id} not found (${status}): ${data.message}`, "error");
+async function jobGetById() {
+    const id = document.getElementById("jobId").value;
+    if (!id) { showResponse("jobResponse", "Job ID required", false); return; }
+    const { ok, status, data } = await apiFetch(`/api/jobs/${id}/`, "GET");
+    showResponse("jobResponse", data, ok);
+    if (ok) setGlobalStatus(`✅ Fetched job id=${id}`, "success");
+    else setGlobalStatus(`❌ Job id=${id} not found (${status}): ${data.message}`, "error");
 }
 
-async function clCreate() {
-    const candidateId = document.getElementById("clCreateCandidateId").value;
-    const langId = document.getElementById("clCreateLangId").value;
-    const proficiency = document.getElementById("clCreateProficiency").value;
+async function jobCreate() {
+    const hrId = document.getElementById("jobCreateHrId").value;
+    const title = document.getElementById("jobCreateTitle").value.trim();
+    const description = document.getElementById("jobCreateDescription").value.trim();
+    const exp = document.getElementById("jobCreateExp").value;
+    const minScore = document.getElementById("jobCreateMinScore").value;
+    const dueDate = document.getElementById("jobCreateDueDate").value;
 
-    if (!candidateId || !langId) {
-        showResponse("clResponse", "Candidate ID and Language ID both required", false);
+    if (!hrId || !title || !description || !dueDate) {
+        showResponse("jobResponse", "HR ID, Title, Description, Due Date required", false);
         return;
     }
 
     const payload = {
-        candidate_id: Number(candidateId),
-        lang_id: Number(langId),
-        proficiency_lvl: proficiency,
+        hr_id: Number(hrId),
+        job_title: title,
+        job_description: description,
+        required_exp: exp ? Number(exp) : 0,
+        minimum_score: minScore ? Number(minScore) : 0,
+        due_date: dueDate,
     };
 
-    const { ok, status, data } = await apiFetch("/api/candidate-languages/create/", "POST", payload);
-    showResponse("clResponse", data, ok);
+    const { ok, status, data } = await apiFetch("/api/jobs/create/", "POST", payload);
+    showResponse("jobResponse", data, ok);
     if (ok) {
-        setGlobalStatus(`✅ Candidate language created (id=${data.data.cand_lang_id})`, "success");
-        document.getElementById("clId").value = data.data.cand_lang_id;
+        setGlobalStatus(`✅ Job created (job_id=${data.data.job_id})`, "success");
+        document.getElementById("jobId").value = data.data.job_id;
     } else {
         setGlobalStatus(`❌ Create failed (${status}): ${data.message}`, "error");
     }
 }
 
-async function clUpdate() {
-    const id = document.getElementById("clId").value;
-    if (!id) { showResponse("clResponse", "CandLanguage ID required", false); return; }
+async function jobUpdate() {
+    const id = document.getElementById("jobId").value;
+    if (!id) { showResponse("jobResponse", "Job ID required", false); return; }
     const payload = {};
-    const newLangId = document.getElementById("clUpdateLangId").value;
-    const newProficiency = document.getElementById("clUpdateProficiency").value;
-    if (newLangId) payload.lang_id = Number(newLangId);
-    if (newProficiency) payload.proficiency_lvl = newProficiency;
+    const title = document.getElementById("jobUpdateTitle").value.trim();
+    const description = document.getElementById("jobUpdateDescription").value.trim();
+    const exp = document.getElementById("jobUpdateExp").value;
+    const minScore = document.getElementById("jobUpdateMinScore").value;
+    const dueDate = document.getElementById("jobUpdateDueDate").value;
+    if (title) payload.job_title = title;
+    if (description) payload.job_description = description;
+    if (exp) payload.required_exp = Number(exp);
+    if (minScore) payload.minimum_score = Number(minScore);
+    if (dueDate) payload.due_date = dueDate;
     if (Object.keys(payload).length === 0) {
-        showResponse("clResponse", "Provide at least one field (lang_id / proficiency_lvl)", false);
+        showResponse("jobResponse", "Provide at least one field to update", false);
         return;
     }
-    const { ok, status, data } = await apiFetch(`/api/candidate-languages/${id}/update/`, "PUT", payload);
-    showResponse("clResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ CandLanguage id=${id} updated`, "success");
+    const { ok, status, data } = await apiFetch(`/api/jobs/${id}/update/`, "PUT", payload);
+    showResponse("jobResponse", data, ok);
+    if (ok) setGlobalStatus(`✅ Job id=${id} updated`, "success");
     else setGlobalStatus(`❌ Update failed (${status}): ${data.message}`, "error");
 }
 
-async function clDelete() {
-    const id = document.getElementById("clId").value;
-    if (!id) { showResponse("clResponse", "CandLanguage ID required", false); return; }
-    if (!confirm(`Delete candidate language id=${id}?`)) return;
-    const { ok, status, data } = await apiFetch(`/api/candidate-languages/${id}/delete/`, "DELETE");
-    showResponse("clResponse", data, ok);
-    if (ok) setGlobalStatus(`🗑️ Candidate language id=${id} deleted`, "info");
+async function jobDelete() {
+    const id = document.getElementById("jobId").value;
+    if (!id) { showResponse("jobResponse", "Job ID required", false); return; }
+    if (!confirm(`Delete job id=${id}?`)) return;
+    const { ok, status, data } = await apiFetch(`/api/jobs/${id}/delete/`, "DELETE");
+    showResponse("jobResponse", data, ok);
+    if (ok) setGlobalStatus(`🗑️ Job id=${id} deleted`, "info");
     else setGlobalStatus(`❌ Delete failed (${status}): ${data.message}`, "error");
 }
 </script>
