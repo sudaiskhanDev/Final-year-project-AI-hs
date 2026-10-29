@@ -1,0 +1,14 @@
+# Core
+Django
+
+# Database driver (MySQL)
+mysqlclient
+
+# Environment variables
+python-dotenv
+
+# CORS (Next.js frontend se connect karne ke liye)
+django-cors-headers
+
+# Image/File handling
+Pillow

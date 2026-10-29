@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masterdata API Tester</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a1a;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 { text-align: center; margin-bottom: 8px; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 24px; font-size: 14px; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 8px;
+        }
+        .row { display: flex; gap: 15px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 200px; }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 2px rgba(74,144,226,0.2);
+        }
+        button {
+            background: #4a90e2;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        button:hover { background: #357abd; }
+        button.danger { background: #e74c3c; }
+        button.danger:hover { background: #c0392b; }
+        button.success { background: #27ae60; }
+        button.success:hover { background: #229954; }
+        button.secondary { background: #7f8c8d; }
+        button.secondary:hover { background: #626f70; }
+        .status {
+            padding: 10px 14px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.idle { background: #e2e3e5; color: #383d41; }
+        .response-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 10px;
+            font-size: 13px;
+            font-family: 'Consolas', monospace;
+            max-height: 250px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .response-box.success { border-left: 4px solid #27ae60; }
+        .response-box.error { border-left: 4px solid #e74c3c; }
+        .sub-section {
+            margin-top: 15px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .sub-section h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .tab {
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+        .tab:hover { color: #4a90e2; background: none; }
+        .tab.active {
+            color: #4a90e2;
+            border-bottom-color: #4a90e2;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📚 Masterdata — API Tester</h1>
+    <p class="subtitle">Base: <code>http://127.0.0.1:8000</code> — Skills / Qualifications / Languages</p>
+
+    <div id="globalStatus" class="status idle">Ready.</div>
+
+    <!-- ==================== TABS ==================== -->
+    <div class="card">
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('skills', this)">🛠️ Skills</button>
+            <button class="tab" onclick="showTab('qualifications', this)">🎓 Qualifications</button>
+            <button class="tab" onclick="showTab('languages', this)">🌐 Languages</button>
+        </div>
+
+        <!-- ==================== SKILLS ==================== -->
+        <div id="tab-skills" class="tab-content active">
+            <h2>🛠️ Skills CRUD</h2>
+
+            <button class="success" onclick="skillList()">GET All Skills</button>
+            <button class="secondary" onclick="skillGetById()">GET Skill by ID</button>
+
+            <div class="sub-section">
+                <h3>Create Skill</h3>
+                <div class="row">
+                    <div class="col">
+                        <label>Skill Name</label>
+                        <input type="text" id="skillCreateName" value="Python" placeholder="Python">
+                    </div>
+                </div>
+                <button class="success" onclick="skillCreate()">POST Create Skill</button>
+            </div>
+
+            <div class="sub-section">
+                <h3>Get / Update / Delete by Skill ID</h3>
+                <div class="row">
+                    <div class="col">
+                        <label>Skill ID</label>
+                        <input type="number" id="skillId" value="1" placeholder="1">
+                    </div>
+                    <div class="col">
+                        <label>New Skill Name (PUT)</label>
+                        <input type="text" id="skillUpdateName" value="Python 3" placeholder="Python 3">
+                    </div>
+                </div>
+                <button onclick="skillUpdate()">PUT Update Skill</button>
+                <button class="danger" onclick="skillDelete()">DELETE Skill</button>
+            </div>
+
+            <div id="skillResponse" class="response-box"></div>
+        </div>
+
+        <!-- ==================== QUALIFICATIONS ==================== -->
+        <div id="tab-qualifications" class="tab-content">
+            <h2>🎓 Qualifications CRUD</h2>
+
+            <button class="success" onclick="qualList()">GET All Qualifications</button>
+            <button class="secondary" onclick="qualGetById()">GET Qualification by ID</button>
+
+            <div class="sub-section">
+                <h3>Create Qualification</h3>
+                <div class="row">
+                    <div class="col">
+                        <label>Qualification Name</label>
+                        <input type="text" id="qualCreateName" value="BSCS" placeholder="BSCS">
+                    </div>
+                </div>
+                <button class="success" onclick="qualCreate()">POST Create Qualification</button>
+            </div>
+
+            <div class="sub-section">
+                <h3>Get / Update / Delete by Qualification ID</h3>
+                <div class="row">
+                    <div class="col">
+                        <label>Qualification ID</label>
+                        <input type="number" id="qualId" value="1" placeholder="1">
+                    </div>
+                    <div class="col">
+                        <label>New Name (PUT)</label>
+                        <input type="text" id="qualUpdateName" value="MSCS" placeholder="MSCS">
+                    </div>
+                </div>
+                <button onclick="qualUpdate()">PUT Update Qualification</button>
+                <button class="danger" onclick="qualDelete()">DELETE Qualification</button>
+            </div>
+
+            <div id="qualResponse" class="response-box"></div>
+        </div>
+
+        <!-- ==================== LANGUAGES ==================== -->
+        <div id="tab-languages" class="tab-content">
+            <h2>🌐 Languages CRUD</h2>
+
+            <button class="success" onclick="langList()">GET All Languages</button>
+            <button class="secondary" onclick="langGetById()">GET Language by ID</button>
+
+            <div class="sub-section">
+                <h3>Create Language</h3>
+                <div class="row">
+                    <div class="col">
+                        <label>Language Name</label>
+                        <input type="text" id="langCreateName" value="English" placeholder="English">
+                    </div>
+                </div>
+                <button class="success" onclick="langCreate()">POST Create Language</button>
+            </div>
+
+            <div class="sub-section">
+                <h3>Get / Update / Delete by Language ID</h3>
+                <div class="row">
+                    <div class="col">
+                        <label>Language ID</label>
+                        <input type="number" id="langId" value="1" placeholder="1">
+                    </div>
+                    <div class="col">
+                        <label>New Name (PUT)</label>
+                        <input type="text" id="langUpdateName" value="Urdu" placeholder="Urdu">
+                    </div>
+                </div>
+                <button onclick="langUpdate()">PUT Update Language</button>
+                <button class="danger" onclick="langDelete()">DELETE Language</button>
+            </div>
+
+            <div id="langResponse" class="response-box"></div>
+        </div>
+    </div>
+
+    <!-- ==================== LOG ==================== -->
+    <div class="card">
+        <h2>📋 Request Log</h2>
+        <button class="secondary" onclick="clearLog()">Clear Log</button>
+        <div id="requestLog" class="response-box" style="max-height: 400px;"></div>
+    </div>
+</div>
+
+<script>
+const BASE_URL = "http://127.0.0.1:8000";
+
+function setGlobalStatus(msg, type = "idle") {
+    const el = document.getElementById("globalStatus");
+    el.className = "status " + type;
+    el.textContent = msg;
+}
+
+function showResponse(elementId, data, isSuccess) {
+    const el = document.getElementById(elementId);
+    el.className = "response-box " + (isSuccess ? "success" : "error");
+    el.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+}
+
+function logRequest(method, url, status, body) {
+    const log = document.getElementById("requestLog");
+    const time = new Date().toLocaleTimeString();
+    const entry = `[${time}] ${method} ${url} → ${status}\n${body ? JSON.stringify(body, null, 2) : ""}\n${"─".repeat(60)}\n`;
+    log.textContent = entry + log.textContent;
+}
+
+function clearLog() {
+    document.getElementById("requestLog").textContent = "";
+}
+
+function showTab(tabName, btn) {
+    document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
+    document.getElementById("tab-" + tabName).classList.add("active");
+    btn.classList.add("active");
+}
+
+function errMsg(data) {
+    return (data && (data.message || data.error)) || "Unknown error";
+}
+
+async function apiFetch(path, method = "GET", body = null) {
+    const url = BASE_URL + path;
+    const options = {
+        method: method,
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+    };
+    if (body) options.body = JSON.stringify(body);
+
+    try {
+        const res = await fetch(url, options);
+        let data;
+        try { data = await res.clone().json(); }
+        catch { data = { raw: await res.text() }; }
+        logRequest(method, url, res.status, data);
+        return { ok: res.ok, status: res.status, data };
+    } catch (err) {
+        logRequest(method, url, "NETWORK ERROR", err.message);
+        return { ok: false, status: 0, data: { error: err.message } };
+    }
+}
+
+// ==================== SKILLS ====================
+async function skillList() {
+    const { ok, status, data } = await apiFetch("/api/skills/", "GET");
+    showResponse("skillResponse", data, ok);
+    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} skills`, "success");
+    else setGlobalStatus(`❌ Failed (${status}): ${errMsg(data)}`, "error");
+}
+
+async function skillGetById() {
+    const id = document.getElementById("skillId").value;
+    if (!id) { showResponse("skillResponse", "Skill ID required", false); return; }
+    const { ok, status, data } = await apiFetch(`/api/skills/${id}/`, "GET");
+    showResponse("skillResponse", data, ok);
+    if (ok) setGlobalStatus(`✅ Fetched skill id=${id}`, "success");
+    else setGlobalStatus(`❌ Skill id=${id} not found (${status}): ${errMsg(data)}`, "error");
+}
+
+async function skillCreate() {
+    const name = document.getElementById("skillCreateName").value.trim();
+    if (!name) { showResponse("skillResponse", "Skill name required", false); return; }
+    const { ok, status, data } = await apiFetch("/api/skills/", "POST", { skill_name: name });
+    showResponse("skillResponse", data, ok);
+    if (ok) {
+        setGlobalStatus(`✅ Skill created (skill_id=${data.data.skill_id})`, "success");
+        document.getElementById("skillId").value = data.data.skill_id;
+    } else setGlobalStatus(`❌ Create failed (${status}): ${errMsg(data)}`, "error");
+}
+
+async function skillUpdate() {
+    const id = document.getElementById("skillId").value;
+    if (!id) { showResponse("skillResponse", "Skill ID required", false); return; }
+    const name = document.getElementById("skillUpdateName").value.trim();
+    if (!name) { showResponse("skillResponse", "New name required", false); return; }
+    const { ok, status, data } = await apiFetch(`/api/skills/${id}/`, "PUT", { skill_name: name });
+    showResponse("skillResponse", data, ok);
+    if (ok) setGlobalStatus(`✅ Skill id=${id} updated`, "success");
+    else setGlobalStatus(`❌ Update failed (${status}): ${errMsg(data)}`, "error");
+}
+
+async function skillDelete() {
+    const id = document.getElementById("skillId").value;
+    if (!id) { showResponse("skillResponse", "Skill ID required", false); return; }
+    if (!confirm(`Delete skill id=${id}?`)) return;
+    const { ok, status, data } = await apiFetch(`/api/skills/${id}/`, "DELETE");
+    showResponse("skillResponse", data, ok);
+    if (ok) setGlobalStatus(`🗑️ Skill id=${id} deleted`, "info");
+    else setGlobalStatus(`❌ Delete failed (${status}): ${errMsg(data)}`, "error");
+}
+
+// ==================== QUALIFICATIONS ====================
+async function qualList() {
+    const { ok, status, data } = await apiFetch("/api/qualifications/", "GET");
+    showResponse("qualResponse", data, ok);
+    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} qualifications`, "success");
+    else setGlobalStatus(`❌ Failed (${status}): ${errMsg(data)}`, "error");
+}
+
+async function qualGetById() {
+    const id = document.getElementById("qualId").value;
+    if (!id) { showResponse("qualResponse", "Qualification ID required", false); return; }
+    const { ok, status, data } = await apiFetch(`/api/qualifications/${id}/`, "GET");
+    showResponse("qualResponse", data, ok);
+    if (ok) setGlobalStatus(`✅ Fetched qualification id=${id}`, "success");
+    else setGlobalStatus(`❌ Qualification id=${id} not found (${status}): ${errMsg(data)}`, "error");
+}
+
+async function qualCreate() {
+    const name = document.getElementById("qualCreateName").value.trim();
+    if (!name) { showResponse("qualResponse", "Qualification name required", false); return; }
+    const { ok, status, data } = await apiFetch("/api/qualifications/", "POST", { qualification_name: name });
+    showResponse("qualResponse", data, ok);
+    if (ok) {
+        setGlobalStatus(`✅ Qualification created (id=${data.data.qualification_id})`, "success");
+        document.getElementById("qualId").value = data.data.qualification_id;
+    } else setGlobalStatus(`❌ Create failed (${status}): ${errMsg(data)}`, "error");
+}
+
+async function qualUpdate() {
+    const id = document.getElementById("qualId").value;
+    if (!id) { showResponse("qualResponse", "Qualification ID required", false); return; }
+    const name = document.getElementById("qualUpdateName").value.trim();
+    if (!name) { showResponse("qualResponse", "New name required", false); return; }
+    const { ok, status, data } = await apiFetch(`/api/qualifications/${id}/`, "PUT", { qualification_name: name });
+    showResponse("qualResponse", data, ok);
+    if (ok) setGlobalStatus(`✅ Qualification id=${id} updated`, "success");
+    else setGlobalStatus(`❌ Update failed (${status}): ${errMsg(data)}`, "error");
+}
+
+async function qualDelete() {
+    const id = document.getElementById("qualId").value;
+    if (!id) { showResponse("qualResponse", "Qualification ID required", false); return; }
+    if (!confirm(`Delete qualification id=${id}?`)) return;
+    const { ok, status, data } = await apiFetch(`/api/qualifications/${id}/`, "DELETE");
+    showResponse("qualResponse", data, ok);
+    if (ok) setGlobalStatus(`🗑️ Qualification id=${id} deleted`, "info");
+    else setGlobalStatus(`❌ Delete failed (${status}): ${errMsg(data)}`, "error");
+}
+
+// ==================== LANGUAGES ====================
+async function langList() {
+    const { ok, status, data } = await apiFetch("/api/languages/", "GET");
+    showResponse("langResponse", data, ok);
+    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} languages`, "success");
+    else setGlobalStatus(`❌ Failed (${status}): ${errMsg(data)}`, "error");
+}
+
+async function langGetById() {
+    const id = document.getElementById("langId").value;
+    if (!id) { showResponse("langResponse", "Language ID required", false); return; }
+    const { ok, status, data } = await apiFetch(`/api/languages/${id}/`, "GET");
+    showResponse("langResponse", data, ok);
+    if (ok) setGlobalStatus(`✅ Fetched language id=${id}`, "success");
+    else setGlobalStatus(`❌ Language id=${id} not found (${status}): ${errMsg(data)}`, "error");
+}
+
+async function langCreate() {
+    const name = document.getElementById("langCreateName").value.trim();
+    if (!name) { showResponse("langResponse", "Language name required", false); return; }
+    const { ok, status, data } = await apiFetch("/api/languages/", "POST", { language_name: name });
+    showResponse("langResponse", data, ok);
+    if (ok) {
+        setGlobalStatus(`✅ Language created (id=${data.data.lang_id})`, "success");
+        document.getElementById("langId").value = data.data.lang_id;
+    } else setGlobalStatus(`❌ Create failed (${status}): ${errMsg(data)}`, "error");
+}
+
+async function langUpdate() {
+    const id = document.getElementById("langId").value;
+    if (!id) { showResponse("langResponse", "Language ID required", false); return; }
+    const name = document.getElementById("langUpdateName").value.trim();
+    if (!name) { showResponse("langResponse", "New name required", false); return; }
+    const { ok, status, data } = await apiFetch(`/api/languages/${id}/`, "PUT", { language_name: name });
+    showResponse("langResponse", data, ok);
+    if (ok) setGlobalStatus(`✅ Language id=${id} updated`, "success");
+    else setGlobalStatus(`❌ Update failed (${status}): ${errMsg(data)}`, "error");
+}
+
+async function langDelete() {
+    const id = document.getElementById("langId").value;
+    if (!id) { showResponse("langResponse", "Language ID required", false); return; }
+    if (!confirm(`Delete language id=${id}?`)) return;
+    const { ok, status, data } = await apiFetch(`/api/languages/${id}/`, "DELETE");
+    showResponse("langResponse", data, ok);
+    if (ok) setGlobalStatus(`🗑️ Language id=${id} deleted`, "info");
+    else setGlobalStatus(`❌ Delete failed (${status}): ${errMsg(data)}`, "error");
+}
+</script>
+
+</body>
+</html>
