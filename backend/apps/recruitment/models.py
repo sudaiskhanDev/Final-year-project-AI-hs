@@ -1,7 +1,7 @@
 from django.db import models
 
 from apps.accounts.models import HRProfile
-
+from apps.masterdata.models import Skill
 
 class Job(models.Model):
     """
@@ -47,3 +47,36 @@ class Job(models.Model):
 
     def __str__(self):
         return f"{self.job_title} (HR: {self.hr.user.full_name})"
+
+
+
+
+
+class JobSkill(models.Model):
+    """
+    Job ke required skills (junction table — Job <-> Skill).
+    HR job post karte waqt required skills add karta hai.
+    """
+    job_skill_id = models.BigAutoField(primary_key=True)
+
+    job = models.ForeignKey(
+        Job,
+        on_delete=models.CASCADE,
+        related_name="skills",
+        db_column="job_id",
+    )
+
+    skill = models.ForeignKey(
+        Skill,
+        on_delete=models.CASCADE,
+        related_name="jobs",
+        db_column="skill_id",
+    )
+
+    class Meta:
+        db_table = "job_skills"
+        unique_together = ("job", "skill")
+        ordering = ["job"]
+
+    def __str__(self):
+        return f"{self.job.job_title} - {self.skill.skill_name}"
