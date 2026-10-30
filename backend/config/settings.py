@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "apps.masterdata",
     "apps.candidates",
     "apps.recruitment",
+    "apps.hiring"
 ]
 
 MIDDLEWARE = [

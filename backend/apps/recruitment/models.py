@@ -1,7 +1,9 @@
 from django.db import models
 
-from apps.accounts.models import HRProfile
-from apps.masterdata.models import Skill
+from apps.accounts.models import HRProfile, CandidateProfile
+from apps.masterdata.models import Skill, Qualification
+
+from apps.candidates.models import Resume
 
 class Job(models.Model):
     """
@@ -80,3 +82,97 @@ class JobSkill(models.Model):
 
     def __str__(self):
         return f"{self.job.job_title} - {self.skill.skill_name}"
+
+
+
+
+
+
+class JobQualification(models.Model):
+    """
+    Job ki required qualifications (junction table — Job <-> Qualification).
+    HR job post karte waqt required qualifications add karta hai.
+    """
+    job_qualification_id = models.BigAutoField(primary_key=True)
+
+    job = models.ForeignKey(
+        Job,
+        on_delete=models.CASCADE,
+        related_name="qualifications",
+        db_column="job_id",
+    )
+
+    qualification = models.ForeignKey(
+        Qualification,
+        on_delete=models.CASCADE,
+        related_name="jobs",
+        db_column="qualification_id",
+    )
+
+    class Meta:
+        db_table = "job_qualification"
+        unique_together = ("job", "qualification")
+        ordering = ["job"]
+
+    def __str__(self):
+        return f"{self.job.job_title} - {self.qualification.qualification_name}"
+    
+
+
+
+
+
+
+class Application(models.Model):
+    """
+    Candidate ki job application.
+    Ek candidate ek job pe ek hi baar apply kar sakta hai.
+    """
+    STATUS_CHOICES = (
+        ("applied", "Applied"),
+        ("shortlisted", "Shortlisted"),
+        ("rejected", "Rejected"),
+        ("hired", "Hired"),
+    )
+
+    application_id = models.BigAutoField(primary_key=True)
+
+    candidate = models.ForeignKey(
+        CandidateProfile,
+        on_delete=models.CASCADE,
+        related_name="applications",
+        db_column="candidate_id",
+    )
+
+    job = models.ForeignKey(
+        Job,
+        on_delete=models.CASCADE,
+        related_name="applications",
+        db_column="job_id",
+    )
+
+    resume = models.ForeignKey(
+        Resume,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="applications",
+        db_column="resume_id",
+        help_text="Which resume was submitted with this application",
+    )
+
+    application_status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="applied",
+    )
+
+    applied_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "applications"
+        unique_together = ("candidate", "job")  # ek job pe ek hi application
+        ordering = ["-applied_at"]
+
+    def __str__(self):
+        return f"{self.candidate.user.full_name} → {self.job.job_title} ({self.application_status})"
