@@ -27,6 +27,7 @@ urlpatterns = [
     path("api/", include("apps.candidates.urls")),
     path("api/", include("apps.recruitment.urls")),
     path("api/", include("apps.hiring.urls")),
+    path("api/ai/", include("apps.ai_services.urls")),
 
 ]
 

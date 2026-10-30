@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HiringResult API Tester</title>
+    <title>AI Services — API Tester</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -15,7 +15,7 @@
         }
         h1 { text-align: center; margin-bottom: 8px; }
         .subtitle { text-align: center; color: #666; margin-bottom: 24px; font-size: 14px; }
-        .container { max-width: 1000px; margin: 0 auto; }
+        .container { max-width: 1050px; margin: 0 auto; }
         .card {
             background: #fff;
             border-radius: 8px;
@@ -49,6 +49,11 @@
             font-family: inherit;
         }
         textarea { resize: vertical; min-height: 70px; }
+        input[type="file"] {
+            border: 1px dashed #4a90e2;
+            background: #f0f7ff;
+            cursor: pointer;
+        }
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: #4a90e2;
@@ -84,6 +89,7 @@
         .status.success { background: #d4edda; color: #155724; }
         .status.error { background: #f8d7da; color: #721c24; }
         .status.idle { background: #e2e3e5; color: #383d41; }
+        .status.loading { background: #fff3cd; color: #856404; }
         .response-box {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
@@ -92,7 +98,7 @@
             margin-top: 10px;
             font-size: 13px;
             font-family: 'Consolas', monospace;
-            max-height: 300px;
+            max-height: 500px;
             overflow-y: auto;
             white-space: pre-wrap;
             word-break: break-word;
@@ -117,101 +123,137 @@
             margin-top: -5px;
             margin-bottom: 10px;
         }
+        .file-info {
+            font-size: 12px;
+            color: #27ae60;
+            font-weight: 600;
+            margin-top: -5px;
+            margin-bottom: 10px;
+        }
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+        .tab:hover { color: #4a90e2; }
+        .tab.active {
+            color: #4a90e2;
+            border-bottom-color: #4a90e2;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4a90e2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🏆 Hiring Result — API Tester</h1>
-    <p class="subtitle">Base: <code>http://127.0.0.1:8000</code> — Final hiring decision</p>
+    <h1>🤖 AI Services — API Tester</h1>
+    <p class="subtitle">Base: <code>http://127.0.0.1:8000</code> — Question Generator + CV Parser</p>
 
     <div id="globalStatus" class="status idle">Ready.</div>
 
-    <!-- ==================== HIRING RESULT CRUD ==================== -->
+    <!-- ==================== TABS ==================== -->
     <div class="card">
-        <h2>🏆 Hiring Result CRUD</h2>
-
-        <button class="success" onclick="hrList()">GET All Hiring Results</button>
-        <button class="secondary" onclick="hrGetById()">GET Hiring Result by ID</button>
-
-        <!-- CREATE -->
-        <div class="sub-section">
-            <h3>Create Hiring Result</h3>
-            <div class="row">
-                <div class="col">
-                    <label>Application ID</label>
-                    <input type="number" id="hrCreateApplicationId" value="1">
-                </div>
-                <div class="col">
-                    <label>Final Score (0-100)</label>
-                    <input type="number" step="0.01" id="hrCreateFinalScore" value="85.0">
-                </div>
-                <div class="col">
-                    <label>Ranking (1 = best)</label>
-                    <input type="number" id="hrCreateRanking" value="1">
-                </div>
-            </div>
-            <div class="row">
-                <div class="col">
-                    <label>Selection Status</label>
-                    <select id="hrCreateSelectionStatus">
-                        <option value="selected">Selected</option>
-                        <option value="shortlisted" selected>Shortlisted</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="on_hold">On Hold</option>
-                    </select>
-                </div>
-                <div class="col">
-                    <label>Decision Date</label>
-                    <input type="date" id="hrCreateDecisionDate" value="2026-12-31">
-                </div>
-            </div>
-            <label>Remarks (optional)</label>
-            <textarea id="hrCreateRemarks">Strong technical skills, good communication.</textarea>
-            <div class="hint">Hint: Application ID from /api/applications/. Ek application ka ek hi result.</div>
-            <button class="success" onclick="hrCreate()">POST Create Hiring Result</button>
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('question', this)">❓ Generate Question</button>
+            <button class="tab" onclick="showTab('parsecv', this)">📄 Parse CV (upload)</button>
+            <button class="tab" onclick="showTab('parsebyid', this)">🆔 Parse CV (by Resume ID)</button>
         </div>
 
-        <!-- GET / UPDATE / DELETE -->
-        <div class="sub-section">
-            <h3>Get / Update / Delete by Result ID</h3>
+        <!-- ==================== GENERATE QUESTION ==================== -->
+        <div id="tab-question" class="tab-content active">
+            <h2>❓ Generate Interview Question</h2>
+            <div class="hint">⚠️ Pehli baar model load hone mein 30-60 seconds lag sakte hain</div>
+
             <div class="row">
                 <div class="col">
-                    <label>Result ID</label>
-                    <input type="number" id="hrId" value="1">
+                    <label>Job Title</label>
+                    <input type="text" id="qJobTitle" value="Python Developer">
                 </div>
                 <div class="col">
-                    <label>New Final Score (PUT)</label>
-                    <input type="number" step="0.01" id="hrUpdateFinalScore">
+                    <label>Required Experience</label>
+                    <input type="text" id="qExperience" value="2 years">
                 </div>
                 <div class="col">
-                    <label>New Ranking (PUT)</label>
-                    <input type="number" id="hrUpdateRanking">
-                </div>
-            </div>
-            <div class="row">
-                <div class="col">
-                    <label>New Selection Status (PUT)</label>
-                    <select id="hrUpdateSelectionStatus">
-                        <option value="">-- no change --</option>
-                        <option value="selected">Selected</option>
-                        <option value="shortlisted">Shortlisted</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="on_hold">On Hold</option>
+                    <label>Question Type</label>
+                    <select id="qQuestionType">
+                        <option value="Scenario" selected>Scenario</option>
+                        <option value="Technical">Technical</option>
+                        <option value="Behavioral">Behavioral</option>
+                        <option value="Problem Solving">Problem Solving</option>
                     </select>
                 </div>
-                <div class="col">
-                    <label>New Decision Date (PUT)</label>
-                    <input type="date" id="hrUpdateDecisionDate">
-                </div>
             </div>
-            <label>New Remarks (PUT)</label>
-            <textarea id="hrUpdateRemarks"></textarea>
-            <button onclick="hrUpdate()">PUT Update Hiring Result</button>
-            <button class="danger" onclick="hrDelete()">DELETE Hiring Result</button>
+
+            <label>Job Description</label>
+            <textarea id="qDescription">We need a Django developer with 2+ years of experience building REST APIs and working with databases.</textarea>
+
+            <label>Skills (comma-separated)</label>
+            <textarea id="qSkills">Python, Django, PostgreSQL, REST APIs</textarea>
+
+            <button class="success" onclick="generateQuestion()">🤖 Generate Question</button>
+            <div id="questionResponse" class="response-box"></div>
         </div>
 
-        <div id="hrResponse" class="response-box"></div>
+        <!-- ==================== PARSE CV (UPLOAD) ==================== -->
+        <div id="tab-parsecv" class="tab-content">
+            <h2>📄 Parse CV (upload file)</h2>
+            <div class="hint">⚠️ Pehli baar NER model load hone mein 30-60 seconds lag sakte hain</div>
+
+            <div class="sub-section">
+                <h3>Upload CV File</h3>
+                <label>Select PDF or DOCX</label>
+                <input type="file" id="cvFile" accept=".pdf,.docx">
+                <div class="file-info" id="cvFileInfo"></div>
+                <button class="success" onclick="parseCV()">📄 Parse CV</button>
+            </div>
+
+            <div id="parseCvResponse" class="response-box"></div>
+        </div>
+
+        <!-- ==================== PARSE CV (BY ID) ==================== -->
+        <div id="tab-parsebyid" class="tab-content">
+            <h2>🆔 Parse CV by Resume ID</h2>
+            <div class="hint">⚠️ Login required — sirf apna resume parse kar sakte ho</div>
+
+            <div class="sub-section">
+                <h3>Resume ID</h3>
+                <label>Resume ID</label>
+                <input type="number" id="resumeId" value="1">
+                <div class="hint">Resume ID from /api/resumes/ (must belong to logged-in user)</div>
+                <button class="success" onclick="parseCVById()">🆔 Parse CV by ID</button>
+            </div>
+
+            <div id="parseCvByIdResponse" class="response-box"></div>
+        </div>
     </div>
 
     <!-- ==================== LOG ==================== -->
@@ -225,10 +267,14 @@
 <script>
 const BASE_URL = "http://127.0.0.1:8000";
 
-function setGlobalStatus(msg, type = "idle") {
+function setGlobalStatus(msg, type = "idle", loading = false) {
     const el = document.getElementById("globalStatus");
     el.className = "status " + type;
-    el.textContent = msg;
+    if (loading) {
+        el.innerHTML = '<span class="loading-spinner"></span>' + msg;
+    } else {
+        el.textContent = msg;
+    }
 }
 
 function showResponse(elementId, data, isSuccess) {
@@ -240,7 +286,7 @@ function showResponse(elementId, data, isSuccess) {
 function logRequest(method, url, status, body) {
     const log = document.getElementById("requestLog");
     const time = new Date().toLocaleTimeString();
-    const entry = `[${time}] ${method} ${url} → ${status}\n${body ? JSON.stringify(body, null, 2) : ""}\n${"─".repeat(60)}\n`;
+    const entry = `[${time}] ${method} ${url} → ${status}\n${body ? JSON.stringify(body, null, 2).substring(0, 500) : ""}\n${"─".repeat(60)}\n`;
     log.textContent = entry + log.textContent;
 }
 
@@ -248,6 +294,14 @@ function clearLog() {
     document.getElementById("requestLog").textContent = "";
 }
 
+function showTab(tabName, btn) {
+    document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
+    document.getElementById("tab-" + tabName).classList.add("active");
+    btn.classList.add("active");
+}
+
+// JSON fetch
 async function apiFetch(path, method = "GET", body = null) {
     const url = BASE_URL + path;
     const options = {
@@ -270,79 +324,119 @@ async function apiFetch(path, method = "GET", body = null) {
     }
 }
 
-// ==================== HIRING RESULT CRUD ====================
-async function hrList() {
-    const { ok, status, data } = await apiFetch("/api/hiring-results/", "GET");
-    showResponse("hrResponse", data, ok);
-    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} hiring results`, "success");
-    else setGlobalStatus(`❌ Failed (${status}): ${data.message}`, "error");
+// Form-data fetch (file upload)
+async function apiUpload(path, formData) {
+    const url = BASE_URL + path;
+    try {
+        const res = await fetch(url, {
+            method: "POST",
+            credentials: "include",
+            body: formData,
+        });
+        let data;
+        try { data = await res.json(); }
+        catch { data = { raw: await res.text() }; }
+        logRequest("POST (file)", url, res.status, data);
+        return { ok: res.ok, status: res.status, data };
+    } catch (err) {
+        logRequest("POST (file)", url, "NETWORK ERROR", err.message);
+        return { ok: false, status: 0, data: { error: err.message } };
+    }
 }
 
-async function hrGetById() {
-    const id = document.getElementById("hrId").value;
-    if (!id) { showResponse("hrResponse", "Result ID required", false); return; }
-    const { ok, status, data } = await apiFetch(`/api/hiring-results/${id}/`, "GET");
-    showResponse("hrResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Fetched hiring result id=${id}`, "success");
-    else setGlobalStatus(`❌ Result id=${id} not found (${status}): ${data.message}`, "error");
-}
+// File info display
+document.addEventListener("DOMContentLoaded", () => {
+    const fileInput = document.getElementById("cvFile");
+    if (fileInput) {
+        fileInput.addEventListener("change", () => {
+            const info = document.getElementById("cvFileInfo");
+            if (fileInput.files.length > 0) {
+                const f = fileInput.files[0];
+                info.textContent = `✅ Selected: ${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
+            } else {
+                info.textContent = "";
+            }
+        });
+    }
+});
 
-async function hrCreate() {
-    const appId = document.getElementById("hrCreateApplicationId").value;
-    if (!appId) { showResponse("hrResponse", "Application ID required", false); return; }
+// ==================== GENERATE QUESTION ====================
+async function generateQuestion() {
+    const title = document.getElementById("qJobTitle").value.trim();
+    const desc = document.getElementById("qDescription").value.trim();
+    const exp = document.getElementById("qExperience").value.trim();
+    const skills = document.getElementById("qSkills").value.trim();
+    const type = document.getElementById("qQuestionType").value;
 
-    const payload = {
-        application_id: Number(appId),
-        final_score: Number(document.getElementById("hrCreateFinalScore").value || 0),
-        ranking: Number(document.getElementById("hrCreateRanking").value || 0),
-        selection_status: document.getElementById("hrCreateSelectionStatus").value,
-        remarks: document.getElementById("hrCreateRemarks").value.trim() || null,
-        decision_date: document.getElementById("hrCreateDecisionDate").value || null,
-    };
-
-    const { ok, status, data } = await apiFetch("/api/hiring-results/create/", "POST", payload);
-    showResponse("hrResponse", data, ok);
-    if (ok) {
-        setGlobalStatus(`✅ Hiring result created (id=${data.data.result_id})`, "success");
-        document.getElementById("hrId").value = data.data.result_id;
-    } else setGlobalStatus(`❌ Create failed (${status}): ${data.message}`, "error");
-}
-
-async function hrUpdate() {
-    const id = document.getElementById("hrId").value;
-    if (!id) { showResponse("hrResponse", "Result ID required", false); return; }
-
-    const payload = {};
-    const score = document.getElementById("hrUpdateFinalScore").value;
-    const ranking = document.getElementById("hrUpdateRanking").value;
-    const statusVal = document.getElementById("hrUpdateSelectionStatus").value;
-    const date = document.getElementById("hrUpdateDecisionDate").value;
-    const remarks = document.getElementById("hrUpdateRemarks").value.trim();
-
-    if (score) payload.final_score = Number(score);
-    if (ranking) payload.ranking = Number(ranking);
-    if (statusVal) payload.selection_status = statusVal;
-    if (date) payload.decision_date = date;
-    if (remarks) payload.remarks = remarks;
-
-    if (Object.keys(payload).length === 0) {
-        showResponse("hrResponse", "Provide at least one field to update", false); return;
+    if (!title || !desc || !exp || !skills) {
+        showResponse("questionResponse", "All fields required", false);
+        return;
     }
 
-    const { ok, status, data } = await apiFetch(`/api/hiring-results/${id}/update/`, "PUT", payload);
-    showResponse("hrResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Hiring result id=${id} updated`, "success");
-    else setGlobalStatus(`❌ Update failed (${status}): ${data.message}`, "error");
+    setGlobalStatus("Generating question... (model loading, 30-60s first time)", "loading", true);
+    showResponse("questionResponse", "Loading model... please wait (first time slow)", false);
+
+    const payload = {
+        job_title: title,
+        job_description: desc,
+        required_experience: exp,
+        skills: skills,
+        question_type: type,
+    };
+
+    const { ok, status, data } = await apiFetch("/api/ai/generate-question/", "POST", payload);
+    showResponse("questionResponse", data, ok);
+
+    if (ok) {
+        setGlobalStatus(`✅ Question generated successfully`, "success");
+    } else {
+        setGlobalStatus(`❌ Failed (${status}): ${data.message || data.detail || "error"}`, "error");
+    }
 }
 
-async function hrDelete() {
-    const id = document.getElementById("hrId").value;
-    if (!id) { showResponse("hrResponse", "Result ID required", false); return; }
-    if (!confirm(`Delete hiring result id=${id}?`)) return;
-    const { ok, status, data } = await apiFetch(`/api/hiring-results/${id}/delete/`, "DELETE");
-    showResponse("hrResponse", data, ok);
-    if (ok) setGlobalStatus(`🗑️ Hiring result id=${id} deleted`, "info");
-    else setGlobalStatus(`❌ Delete failed (${status}): ${data.message}`, "error");
+// ==================== PARSE CV (UPLOAD) ====================
+async function parseCV() {
+    const fileInput = document.getElementById("cvFile");
+    if (!fileInput.files || fileInput.files.length === 0) {
+        showResponse("parseCvResponse", "Please select a file first", false);
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+
+    setGlobalStatus("Parsing CV... (NER model loading, 30-60s first time)", "loading", true);
+    showResponse("parseCvResponse", "Parsing... please wait (first time slow)", false);
+
+    const { ok, status, data } = await apiUpload("/api/ai/parse-cv/", formData);
+    showResponse("parseCvResponse", data, ok);
+
+    if (ok) {
+        setGlobalStatus(`✅ CV parsed successfully`, "success");
+    } else {
+        setGlobalStatus(`❌ Parse failed (${status}): ${data.message || data.detail || "error"}`, "error");
+    }
+}
+
+// ==================== PARSE CV (BY ID) ====================
+async function parseCVById() {
+    const id = document.getElementById("resumeId").value;
+    if (!id) {
+        showResponse("parseCvByIdResponse", "Resume ID required", false);
+        return;
+    }
+
+    setGlobalStatus("Parsing CV by ID... (loading)", "loading", true);
+    showResponse("parseCvByIdResponse", "Parsing... please wait", false);
+
+    const { ok, status, data } = await apiFetch(`/api/ai/parse-cv/${id}/`, "POST");
+    showResponse("parseCvByIdResponse", data, ok);
+
+    if (ok) {
+        setGlobalStatus(`✅ Resume id=${id} parsed successfully`, "success");
+    } else {
+        setGlobalStatus(`❌ Failed (${status}): ${data.message || data.detail || "error"}`, "error");
+    }
 }
 </script>
 
