@@ -28,3 +28,17 @@ db.sqlite3-journal
 # OS
 .DS_Store
 Thumbs.db
+
+
+
+# ============================================================
+# AI MODELS (bade hain — GitHub pe push nahi kar sakte)
+# ============================================================
+ai_models/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+*.h5
+*.pkl

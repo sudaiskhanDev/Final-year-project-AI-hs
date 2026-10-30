@@ -1,3 +1,32 @@
+# # Core
+# Django
+
+# # Database driver (MySQL)
+# mysqlclient
+
+# # Environment variables
+# python-dotenv
+
+# # CORS (Next.js frontend se connect karne ke liye)
+# django-cors-headers
+
+# # Image/File handling
+# Pillow
+
+
+
+# #new
+
+# pdfplumber
+# PyMuPDF
+# python-docx
+# rapidfuzz
+# spacy
+# transformers
+# torch
+
+
+
 # Core
 Django
 
@@ -12,3 +41,38 @@ django-cors-headers
 
 # Image/File handling
 Pillow
+# Core
+Django
+
+# Database driver (MySQL)
+mysqlclient
+
+# Environment variables
+python-dotenv
+
+# CORS (Next.js frontend se connect karne ke liye)
+django-cors-headers
+
+# Image/File handling
+Pillow
+
+# ============================================================
+# AI SERVICES
+# ============================================================
+
+# Document processing (CV/Resume)
+pdfplumber
+PyMuPDF
+python-docx
+
+# Text processing / NER
+rapidfuzz
+spacy
+sentencepiece
+
+# spaCy English model (direct URL — PyPI pe nahi hai, isliye URL se)
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
+# Deep learning / Models
+transformers
+torch

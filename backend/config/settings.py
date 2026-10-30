@@ -37,15 +37,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    "corsheaders",
 
+
+    "corsheaders",
 
 
     "apps.accounts",
     "apps.masterdata",
     "apps.candidates",
     "apps.recruitment",
-    "apps.hiring"
+    "apps.hiring",
+    "apps.ai_services",
 ]
 
 MIDDLEWARE = [
