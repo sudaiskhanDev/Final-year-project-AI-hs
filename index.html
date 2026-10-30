@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Question API Tester</title>
+    <title>HiringResult API Tester</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -48,7 +48,7 @@
             margin-bottom: 10px;
             font-family: inherit;
         }
-        textarea { resize: vertical; min-height: 80px; }
+        textarea { resize: vertical; min-height: 70px; }
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: #4a90e2;
@@ -122,69 +122,96 @@
 <body>
 
 <div class="container">
-    <h1>❓ Question — API Tester</h1>
-    <p class="subtitle">Base: <code>http://127.0.0.1:8000</code> — Interview Questions & Answers</p>
+    <h1>🏆 Hiring Result — API Tester</h1>
+    <p class="subtitle">Base: <code>http://127.0.0.1:8000</code> — Final hiring decision</p>
 
     <div id="globalStatus" class="status idle">Ready.</div>
 
-    <!-- ==================== QUESTION CRUD ==================== -->
+    <!-- ==================== HIRING RESULT CRUD ==================== -->
     <div class="card">
-        <h2>❓ Question CRUD</h2>
+        <h2>🏆 Hiring Result CRUD</h2>
 
-        <button class="success" onclick="qList()">GET All Questions</button>
-        <button class="secondary" onclick="qGetById()">GET Question by ID</button>
+        <button class="success" onclick="hrList()">GET All Hiring Results</button>
+        <button class="secondary" onclick="hrGetById()">GET Hiring Result by ID</button>
 
         <!-- CREATE -->
         <div class="sub-section">
-            <h3>Create Question</h3>
+            <h3>Create Hiring Result</h3>
             <div class="row">
                 <div class="col">
-                    <label>Interview ID</label>
-                    <input type="number" id="qCreateInterviewId" value="1">
+                    <label>Application ID</label>
+                    <input type="number" id="hrCreateApplicationId" value="1">
                 </div>
                 <div class="col">
-                    <label>Answer Score (0-100)</label>
-                    <input type="number" step="0.01" id="qCreateScore" value="0">
+                    <label>Final Score (0-100)</label>
+                    <input type="number" step="0.01" id="hrCreateFinalScore" value="85.0">
                 </div>
                 <div class="col">
-                    <label>Time Taken (seconds)</label>
-                    <input type="number" id="qCreateTime" value="0">
+                    <label>Ranking (1 = best)</label>
+                    <input type="number" id="hrCreateRanking" value="1">
                 </div>
             </div>
-            <label>Question Text</label>
-            <textarea id="qCreateQuestion">What is Django?</textarea>
-            <label>Answer Text (optional)</label>
-            <textarea id="qCreateAnswer"></textarea>
-            <div class="hint">Hint: Interview ID from /api/ai-interviews/</div>
-            <button class="success" onclick="qCreate()">POST Create Question</button>
+            <div class="row">
+                <div class="col">
+                    <label>Selection Status</label>
+                    <select id="hrCreateSelectionStatus">
+                        <option value="selected">Selected</option>
+                        <option value="shortlisted" selected>Shortlisted</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="on_hold">On Hold</option>
+                    </select>
+                </div>
+                <div class="col">
+                    <label>Decision Date</label>
+                    <input type="date" id="hrCreateDecisionDate" value="2026-12-31">
+                </div>
+            </div>
+            <label>Remarks (optional)</label>
+            <textarea id="hrCreateRemarks">Strong technical skills, good communication.</textarea>
+            <div class="hint">Hint: Application ID from /api/applications/. Ek application ka ek hi result.</div>
+            <button class="success" onclick="hrCreate()">POST Create Hiring Result</button>
         </div>
 
         <!-- GET / UPDATE / DELETE -->
         <div class="sub-section">
-            <h3>Get / Update / Delete by Question ID</h3>
+            <h3>Get / Update / Delete by Result ID</h3>
             <div class="row">
                 <div class="col">
-                    <label>Question ID</label>
-                    <input type="number" id="qId" value="1">
+                    <label>Result ID</label>
+                    <input type="number" id="hrId" value="1">
                 </div>
                 <div class="col">
-                    <label>New Answer Score (PUT)</label>
-                    <input type="number" step="0.01" id="qUpdateScore">
+                    <label>New Final Score (PUT)</label>
+                    <input type="number" step="0.01" id="hrUpdateFinalScore">
                 </div>
                 <div class="col">
-                    <label>New Time Taken (PUT)</label>
-                    <input type="number" id="qUpdateTime">
+                    <label>New Ranking (PUT)</label>
+                    <input type="number" id="hrUpdateRanking">
                 </div>
             </div>
-            <label>New Question Text (PUT)</label>
-            <textarea id="qUpdateQuestion"></textarea>
-            <label>New Answer Text (PUT)</label>
-            <textarea id="qUpdateAnswer"></textarea>
-            <button onclick="qUpdate()">PUT Update Question</button>
-            <button class="danger" onclick="qDelete()">DELETE Question</button>
+            <div class="row">
+                <div class="col">
+                    <label>New Selection Status (PUT)</label>
+                    <select id="hrUpdateSelectionStatus">
+                        <option value="">-- no change --</option>
+                        <option value="selected">Selected</option>
+                        <option value="shortlisted">Shortlisted</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="on_hold">On Hold</option>
+                    </select>
+                </div>
+                <div class="col">
+                    <label>New Decision Date (PUT)</label>
+                    <input type="date" id="hrUpdateDecisionDate">
+                </div>
+            </div>
+            <label>New Remarks (PUT)</label>
+            <textarea id="hrUpdateRemarks"></textarea>
+            <button onclick="hrUpdate()">PUT Update Hiring Result</button>
+            <button class="danger" onclick="hrDelete()">DELETE Hiring Result</button>
         </div>
 
-        <div id="qResponse" class="response-box"></div>
+        <div id="hrResponse" class="response-box"></div>
     </div>
 
     <!-- ==================== LOG ==================== -->
@@ -243,78 +270,78 @@ async function apiFetch(path, method = "GET", body = null) {
     }
 }
 
-// ==================== QUESTION CRUD ====================
-async function qList() {
-    const { ok, status, data } = await apiFetch("/api/questions/", "GET");
-    showResponse("qResponse", data, ok);
-    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} questions`, "success");
+// ==================== HIRING RESULT CRUD ====================
+async function hrList() {
+    const { ok, status, data } = await apiFetch("/api/hiring-results/", "GET");
+    showResponse("hrResponse", data, ok);
+    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} hiring results`, "success");
     else setGlobalStatus(`❌ Failed (${status}): ${data.message}`, "error");
 }
 
-async function qGetById() {
-    const id = document.getElementById("qId").value;
-    if (!id) { showResponse("qResponse", "Question ID required", false); return; }
-    const { ok, status, data } = await apiFetch(`/api/questions/${id}/`, "GET");
-    showResponse("qResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Fetched question id=${id}`, "success");
-    else setGlobalStatus(`❌ Question id=${id} not found (${status}): ${data.message}`, "error");
+async function hrGetById() {
+    const id = document.getElementById("hrId").value;
+    if (!id) { showResponse("hrResponse", "Result ID required", false); return; }
+    const { ok, status, data } = await apiFetch(`/api/hiring-results/${id}/`, "GET");
+    showResponse("hrResponse", data, ok);
+    if (ok) setGlobalStatus(`✅ Fetched hiring result id=${id}`, "success");
+    else setGlobalStatus(`❌ Result id=${id} not found (${status}): ${data.message}`, "error");
 }
 
-async function qCreate() {
-    const interviewId = document.getElementById("qCreateInterviewId").value;
-    const questionText = document.getElementById("qCreateQuestion").value.trim();
-    if (!interviewId || !questionText) {
-        showResponse("qResponse", "Interview ID and Question Text required", false); return;
-    }
+async function hrCreate() {
+    const appId = document.getElementById("hrCreateApplicationId").value;
+    if (!appId) { showResponse("hrResponse", "Application ID required", false); return; }
 
     const payload = {
-        interview_id: Number(interviewId),
-        question_text: questionText,
-        answer_text: document.getElementById("qCreateAnswer").value.trim() || null,
-        answer_score: Number(document.getElementById("qCreateScore").value || 0),
-        time_taken: Number(document.getElementById("qCreateTime").value || 0),
+        application_id: Number(appId),
+        final_score: Number(document.getElementById("hrCreateFinalScore").value || 0),
+        ranking: Number(document.getElementById("hrCreateRanking").value || 0),
+        selection_status: document.getElementById("hrCreateSelectionStatus").value,
+        remarks: document.getElementById("hrCreateRemarks").value.trim() || null,
+        decision_date: document.getElementById("hrCreateDecisionDate").value || null,
     };
 
-    const { ok, status, data } = await apiFetch("/api/questions/create/", "POST", payload);
-    showResponse("qResponse", data, ok);
+    const { ok, status, data } = await apiFetch("/api/hiring-results/create/", "POST", payload);
+    showResponse("hrResponse", data, ok);
     if (ok) {
-        setGlobalStatus(`✅ Question created (id=${data.data.question_id})`, "success");
-        document.getElementById("qId").value = data.data.question_id;
+        setGlobalStatus(`✅ Hiring result created (id=${data.data.result_id})`, "success");
+        document.getElementById("hrId").value = data.data.result_id;
     } else setGlobalStatus(`❌ Create failed (${status}): ${data.message}`, "error");
 }
 
-async function qUpdate() {
-    const id = document.getElementById("qId").value;
-    if (!id) { showResponse("qResponse", "Question ID required", false); return; }
+async function hrUpdate() {
+    const id = document.getElementById("hrId").value;
+    if (!id) { showResponse("hrResponse", "Result ID required", false); return; }
 
     const payload = {};
-    const qText = document.getElementById("qUpdateQuestion").value.trim();
-    const aText = document.getElementById("qUpdateAnswer").value.trim();
-    const score = document.getElementById("qUpdateScore").value;
-    const time = document.getElementById("qUpdateTime").value;
+    const score = document.getElementById("hrUpdateFinalScore").value;
+    const ranking = document.getElementById("hrUpdateRanking").value;
+    const statusVal = document.getElementById("hrUpdateSelectionStatus").value;
+    const date = document.getElementById("hrUpdateDecisionDate").value;
+    const remarks = document.getElementById("hrUpdateRemarks").value.trim();
 
-    if (qText) payload.question_text = qText;
-    if (aText) payload.answer_text = aText;
-    if (score) payload.answer_score = Number(score);
-    if (time) payload.time_taken = Number(time);
+    if (score) payload.final_score = Number(score);
+    if (ranking) payload.ranking = Number(ranking);
+    if (statusVal) payload.selection_status = statusVal;
+    if (date) payload.decision_date = date;
+    if (remarks) payload.remarks = remarks;
 
     if (Object.keys(payload).length === 0) {
-        showResponse("qResponse", "Provide at least one field to update", false); return;
+        showResponse("hrResponse", "Provide at least one field to update", false); return;
     }
 
-    const { ok, status, data } = await apiFetch(`/api/questions/${id}/update/`, "PUT", payload);
-    showResponse("qResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Question id=${id} updated`, "success");
+    const { ok, status, data } = await apiFetch(`/api/hiring-results/${id}/update/`, "PUT", payload);
+    showResponse("hrResponse", data, ok);
+    if (ok) setGlobalStatus(`✅ Hiring result id=${id} updated`, "success");
     else setGlobalStatus(`❌ Update failed (${status}): ${data.message}`, "error");
 }
 
-async function qDelete() {
-    const id = document.getElementById("qId").value;
-    if (!id) { showResponse("qResponse", "Question ID required", false); return; }
-    if (!confirm(`Delete question id=${id}?`)) return;
-    const { ok, status, data } = await apiFetch(`/api/questions/${id}/delete/`, "DELETE");
-    showResponse("qResponse", data, ok);
-    if (ok) setGlobalStatus(`🗑️ Question id=${id} deleted`, "info");
+async function hrDelete() {
+    const id = document.getElementById("hrId").value;
+    if (!id) { showResponse("hrResponse", "Result ID required", false); return; }
+    if (!confirm(`Delete hiring result id=${id}?`)) return;
+    const { ok, status, data } = await apiFetch(`/api/hiring-results/${id}/delete/`, "DELETE");
+    showResponse("hrResponse", data, ok);
+    if (ok) setGlobalStatus(`🗑️ Hiring result id=${id} deleted`, "info");
     else setGlobalStatus(`❌ Delete failed (${status}): ${data.message}`, "error");
 }
 </script>

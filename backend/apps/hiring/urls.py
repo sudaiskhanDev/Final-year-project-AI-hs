@@ -35,10 +35,22 @@ from .views.question_views import (
 
 
 
+from .views.video_analysis_views import (
+    video_analysis_create,
+    video_analysis_list,
+    video_analysis_detail,
+    video_analysis_update,
+    video_analysis_delete,
+)
 
 
-
-
+from .views.hiring_result_views import (
+    hiring_result_create,
+    hiring_result_list,
+    hiring_result_detail,
+    hiring_result_update,
+    hiring_result_delete,
+)
 
 
 urlpatterns = [
@@ -66,4 +78,25 @@ urlpatterns = [
     path("questions/<int:question_id>/", question_detail, name="question-detail"),
     path("questions/<int:question_id>/update/", question_update, name="question-update"),
     path("questions/<int:question_id>/delete/", question_delete, name="question-delete"),
+
+
+
+        # Video Analysis
+    path("video-analyses/", video_analysis_list, name="video-analysis-list"),
+    path("video-analyses/create/", video_analysis_create, name="video-analysis-create"),
+    path("video-analyses/<int:analysis_id>/", video_analysis_detail, name="video-analysis-detail"),
+    path("video-analyses/<int:analysis_id>/update/", video_analysis_update, name="video-analysis-update"),
+    path("video-analyses/<int:analysis_id>/delete/", video_analysis_delete, name="video-analysis-delete"),
+
+
+
+
+
+        # Hiring Result
+    path("hiring-results/", hiring_result_list, name="hiring-result-list"),
+    path("hiring-results/create/", hiring_result_create, name="hiring-result-create"),
+    path("hiring-results/<int:result_id>/", hiring_result_detail, name="hiring-result-detail"),
+    path("hiring-results/<int:result_id>/update/", hiring_result_update, name="hiring-result-update"),
+    path("hiring-results/<int:result_id>/delete/", hiring_result_delete, name="hiring-result-delete"),
+
 ]

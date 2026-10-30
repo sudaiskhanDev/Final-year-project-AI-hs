@@ -190,3 +190,131 @@ class Question(models.Model):
 
     def __str__(self):
         return f"Q#{self.question_id} - Interview #{self.interview.interview_id} (score: {self.answer_score})"
+
+    
+
+
+
+
+
+class VideoAnalysis(models.Model):
+    """
+    Interview video ka analysis — eye contact, dress code, confidence, etc.
+    Ek interview ka ek hi analysis hoga (OneToOne).
+    """
+    analysis_id = models.BigAutoField(primary_key=True)
+
+    interview = models.OneToOneField(
+        AIInterview,
+        on_delete=models.CASCADE,
+        related_name="video_analysis",
+        db_column="interview_id",
+    )
+
+    eye_contact_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text="Eye contact score (0-100)",
+    )
+
+    dress_code = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Detected dress code (e.g., formal, casual)",
+    )
+
+    dress_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text="Dress code appropriateness score (0-100)",
+    )
+
+    confidence_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text="Confidence score (0-100)",
+    )
+
+    overall_video_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text="Weighted overall video score (0-100)",
+    )
+
+    analyzed_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = "video_analysis"
+        ordering = ["-analysis_id"]
+
+    def __str__(self):
+        return f"Interview #{self.interview.interview_id} - Video score: {self.overall_video_score}"
+
+
+
+
+
+
+
+class HiringResult(models.Model):
+    """
+    Final hiring decision — score, ranking, shortlist/reject.
+    Ek application ka ek hi final result hoga (OneToOne).
+    """
+    SELECTION_CHOICES = (
+        ("selected", "Selected"),
+        ("shortlisted", "Shortlisted"),
+        ("rejected", "Rejected"),
+        ("on_hold", "On Hold"),
+    )
+
+    result_id = models.BigAutoField(primary_key=True)
+
+    application = models.OneToOneField(
+        Application,
+        on_delete=models.CASCADE,
+        related_name="hiring_result",
+        db_column="application_id",
+    )
+
+    final_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text="Final weighted score (0-100)",
+    )
+
+    ranking = models.IntegerField(
+        default=0,
+        help_text="Ranking among candidates (1 = best)",
+    )
+
+    selection_status = models.CharField(
+        max_length=20,
+        choices=SELECTION_CHOICES,
+        default="shortlisted",
+    )
+
+    remarks = models.TextField(
+        blank=True,
+        null=True,
+        help_text="HR ke comments/remarks",
+    )
+
+    decision_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text="Date when final decision was made",
+    )
+
+    class Meta:
+        db_table = "hiring_results"
+        ordering = ["-final_score"]
+
+    def __str__(self):
+        return f"App #{self.application.application_id} - {self.selection_status} ({self.final_score})"
