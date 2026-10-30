@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recruitment API Tester</title>
+    <title>Question API Tester</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -15,7 +15,7 @@
         }
         h1 { text-align: center; margin-bottom: 8px; }
         .subtitle { text-align: center; color: #666; margin-bottom: 24px; font-size: 14px; }
-        .container { max-width: 1100px; margin: 0 auto; }
+        .container { max-width: 1000px; margin: 0 auto; }
         .card {
             background: #fff;
             border-radius: 8px;
@@ -31,7 +31,7 @@
             padding-bottom: 8px;
         }
         .row { display: flex; gap: 15px; flex-wrap: wrap; }
-        .col { flex: 1; min-width: 200px; }
+        .col { flex: 1; min-width: 180px; }
         label {
             display: block;
             font-size: 13px;
@@ -39,7 +39,7 @@
             margin-bottom: 5px;
             color: #555;
         }
-        input, textarea, select {
+        input, select, textarea {
             width: 100%;
             padding: 8px 10px;
             border: 1px solid #ccc;
@@ -48,8 +48,8 @@
             margin-bottom: 10px;
             font-family: inherit;
         }
-        textarea { resize: vertical; min-height: 70px; }
-        input:focus, textarea:focus, select:focus {
+        textarea { resize: vertical; min-height: 80px; }
+        input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: #4a90e2;
             box-shadow: 0 0 0 2px rgba(74,144,226,0.2);
@@ -117,259 +117,74 @@
             margin-top: -5px;
             margin-bottom: 10px;
         }
-        .tabs {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #e0e0e0;
-            flex-wrap: wrap;
-        }
-        .tab {
-            padding: 8px 16px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            color: #666;
-            border-bottom: 3px solid transparent;
-            margin-bottom: -2px;
-        }
-        .tab:hover { color: #4a90e2; }
-        .tab.active {
-            color: #4a90e2;
-            border-bottom-color: #4a90e2;
-        }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>💼 Recruitment — API Tester</h1>
-    <p class="subtitle">Base: <code>http://127.0.0.1:8000</code> — Jobs / JobSkills / JobQualifications / Applications</p>
+    <h1>❓ Question — API Tester</h1>
+    <p class="subtitle">Base: <code>http://127.0.0.1:8000</code> — Interview Questions & Answers</p>
 
     <div id="globalStatus" class="status idle">Ready.</div>
 
-    <!-- ==================== TABS ==================== -->
+    <!-- ==================== QUESTION CRUD ==================== -->
     <div class="card">
-        <div class="tabs">
-            <button class="tab active" onclick="showTab('jobs', this)">💼 Jobs</button>
-            <button class="tab" onclick="showTab('jobskills', this)">🔗 Job Skills</button>
-            <button class="tab" onclick="showTab('jobquals', this)">🎓 Job Qualifications</button>
-            <button class="tab" onclick="showTab('applications', this)">📝 Applications</button>
+        <h2>❓ Question CRUD</h2>
+
+        <button class="success" onclick="qList()">GET All Questions</button>
+        <button class="secondary" onclick="qGetById()">GET Question by ID</button>
+
+        <!-- CREATE -->
+        <div class="sub-section">
+            <h3>Create Question</h3>
+            <div class="row">
+                <div class="col">
+                    <label>Interview ID</label>
+                    <input type="number" id="qCreateInterviewId" value="1">
+                </div>
+                <div class="col">
+                    <label>Answer Score (0-100)</label>
+                    <input type="number" step="0.01" id="qCreateScore" value="0">
+                </div>
+                <div class="col">
+                    <label>Time Taken (seconds)</label>
+                    <input type="number" id="qCreateTime" value="0">
+                </div>
+            </div>
+            <label>Question Text</label>
+            <textarea id="qCreateQuestion">What is Django?</textarea>
+            <label>Answer Text (optional)</label>
+            <textarea id="qCreateAnswer"></textarea>
+            <div class="hint">Hint: Interview ID from /api/ai-interviews/</div>
+            <button class="success" onclick="qCreate()">POST Create Question</button>
         </div>
 
-        <!-- ==================== JOBS TAB ==================== -->
-        <div id="tab-jobs" class="tab-content active">
-            <h2>💼 Job CRUD</h2>
-
-            <button class="success" onclick="jobList()">GET All Jobs</button>
-            <button class="secondary" onclick="jobGetById()">GET Job by ID</button>
-
-            <div class="sub-section">
-                <h3>Create Job</h3>
-                <div class="row">
-                    <div class="col">
-                        <label>HR ID</label>
-                        <input type="number" id="jobCreateHrId" value="1">
-                    </div>
-                    <div class="col">
-                        <label>Job Title</label>
-                        <input type="text" id="jobCreateTitle" value="Python Developer">
-                    </div>
+        <!-- GET / UPDATE / DELETE -->
+        <div class="sub-section">
+            <h3>Get / Update / Delete by Question ID</h3>
+            <div class="row">
+                <div class="col">
+                    <label>Question ID</label>
+                    <input type="number" id="qId" value="1">
                 </div>
-                <label>Job Description</label>
-                <textarea id="jobCreateDescription">Looking for a Django developer with 2+ years of experience.</textarea>
-                <div class="row">
-                    <div class="col">
-                        <label>Required Experience (years)</label>
-                        <input type="number" step="0.1" id="jobCreateExp" value="2.5">
-                    </div>
-                    <div class="col">
-                        <label>Minimum Score (0-100)</label>
-                        <input type="number" step="0.01" id="jobCreateMinScore" value="65.0">
-                    </div>
-                    <div class="col">
-                        <label>Due Date</label>
-                        <input type="date" id="jobCreateDueDate" value="2026-12-31">
-                    </div>
+                <div class="col">
+                    <label>New Answer Score (PUT)</label>
+                    <input type="number" step="0.01" id="qUpdateScore">
                 </div>
-                <button class="success" onclick="jobCreate()">POST Create Job</button>
+                <div class="col">
+                    <label>New Time Taken (PUT)</label>
+                    <input type="number" id="qUpdateTime">
+                </div>
             </div>
-
-            <div class="sub-section">
-                <h3>Get / Update / Delete by Job ID</h3>
-                <div class="row">
-                    <div class="col">
-                        <label>Job ID</label>
-                        <input type="number" id="jobId" value="1">
-                    </div>
-                    <div class="col">
-                        <label>New Title (PUT)</label>
-                        <input type="text" id="jobUpdateTitle">
-                    </div>
-                </div>
-                <label>New Description (PUT)</label>
-                <textarea id="jobUpdateDescription"></textarea>
-                <div class="row">
-                    <div class="col">
-                        <label>New Required Exp (PUT)</label>
-                        <input type="number" step="0.1" id="jobUpdateExp">
-                    </div>
-                    <div class="col">
-                        <label>New Min Score (PUT)</label>
-                        <input type="number" step="0.01" id="jobUpdateMinScore">
-                    </div>
-                    <div class="col">
-                        <label>New Due Date (PUT)</label>
-                        <input type="date" id="jobUpdateDueDate">
-                    </div>
-                </div>
-                <button onclick="jobUpdate()">PUT Update Job</button>
-                <button class="danger" onclick="jobDelete()">DELETE Job</button>
-            </div>
-
-            <div id="jobResponse" class="response-box"></div>
+            <label>New Question Text (PUT)</label>
+            <textarea id="qUpdateQuestion"></textarea>
+            <label>New Answer Text (PUT)</label>
+            <textarea id="qUpdateAnswer"></textarea>
+            <button onclick="qUpdate()">PUT Update Question</button>
+            <button class="danger" onclick="qDelete()">DELETE Question</button>
         </div>
 
-        <!-- ==================== JOB SKILLS TAB ==================== -->
-        <div id="tab-jobskills" class="tab-content">
-            <h2>🔗 Job Skill CRUD</h2>
-
-            <button class="success" onclick="jsList()">GET All Job Skills</button>
-            <button class="secondary" onclick="jsGetById()">GET Job Skill by ID</button>
-
-            <div class="sub-section">
-                <h3>Create Job Skill</h3>
-                <div class="row">
-                    <div class="col">
-                        <label>Job ID</label>
-                        <input type="number" id="jsCreateJobId" value="1">
-                    </div>
-                    <div class="col">
-                        <label>Skill ID</label>
-                        <input type="number" id="jsCreateSkillId" value="1">
-                    </div>
-                </div>
-                <button class="success" onclick="jsCreate()">POST Create Job Skill</button>
-            </div>
-
-            <div class="sub-section">
-                <h3>Get / Update / Delete by JobSkill ID</h3>
-                <div class="row">
-                    <div class="col">
-                        <label>JobSkill ID</label>
-                        <input type="number" id="jsId" value="1">
-                    </div>
-                    <div class="col">
-                        <label>New Skill ID (PUT)</label>
-                        <input type="number" id="jsUpdateSkillId" value="2">
-                    </div>
-                </div>
-                <button onclick="jsUpdate()">PUT Update Job Skill</button>
-                <button class="danger" onclick="jsDelete()">DELETE Job Skill</button>
-            </div>
-
-            <div id="jsResponse" class="response-box"></div>
-        </div>
-
-        <!-- ==================== JOB QUALIFICATIONS TAB ==================== -->
-        <div id="tab-jobquals" class="tab-content">
-            <h2>🎓 Job Qualification CRUD</h2>
-
-            <button class="success" onclick="jqList()">GET All Job Qualifications</button>
-            <button class="secondary" onclick="jqGetById()">GET Job Qualification by ID</button>
-
-            <div class="sub-section">
-                <h3>Create Job Qualification</h3>
-                <div class="row">
-                    <div class="col">
-                        <label>Job ID</label>
-                        <input type="number" id="jqCreateJobId" value="1">
-                    </div>
-                    <div class="col">
-                        <label>Qualification ID</label>
-                        <input type="number" id="jqCreateQualificationId" value="1">
-                    </div>
-                </div>
-                <button class="success" onclick="jqCreate()">POST Create Job Qualification</button>
-            </div>
-
-            <div class="sub-section">
-                <h3>Get / Update / Delete by JobQualification ID</h3>
-                <div class="row">
-                    <div class="col">
-                        <label>JobQualification ID</label>
-                        <input type="number" id="jqId" value="1">
-                    </div>
-                    <div class="col">
-                        <label>New Qualification ID (PUT)</label>
-                        <input type="number" id="jqUpdateQualificationId" value="2">
-                    </div>
-                </div>
-                <button onclick="jqUpdate()">PUT Update Job Qualification</button>
-                <button class="danger" onclick="jqDelete()">DELETE Job Qualification</button>
-            </div>
-
-            <div id="jqResponse" class="response-box"></div>
-        </div>
-
-        <!-- ==================== APPLICATIONS TAB ==================== -->
-        <div id="tab-applications" class="tab-content">
-            <h2>📝 Application CRUD</h2>
-
-            <button class="success" onclick="appList()">GET All Applications</button>
-            <button class="secondary" onclick="appGetById()">GET Application by ID</button>
-
-            <div class="sub-section">
-                <h3>Create Application (Candidate applies for Job)</h3>
-                <div class="row">
-                    <div class="col">
-                        <label>Candidate ID</label>
-                        <input type="number" id="appCreateCandidateId" value="1">
-                    </div>
-                    <div class="col">
-                        <label>Job ID</label>
-                        <input type="number" id="appCreateJobId" value="1">
-                    </div>
-                    <div class="col">
-                        <label>Resume ID (optional)</label>
-                        <input type="number" id="appCreateResumeId" value="1">
-                    </div>
-                </div>
-                <button class="success" onclick="appCreate()">POST Create Application</button>
-            </div>
-
-            <div class="sub-section">
-                <h3>Get / Update / Delete by Application ID</h3>
-                <div class="row">
-                    <div class="col">
-                        <label>Application ID</label>
-                        <input type="number" id="appId" value="1">
-                    </div>
-                    <div class="col">
-                        <label>New Status (PUT)</label>
-                        <select id="appUpdateStatus">
-                            <option value="">-- no change --</option>
-                            <option value="applied">Applied</option>
-                            <option value="shortlisted">Shortlisted</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="hired">Hired</option>
-                        </select>
-                    </div>
-                    <div class="col">
-                        <label>New Resume ID (PUT)</label>
-                        <input type="number" id="appUpdateResumeId" placeholder="leave empty to skip">
-                    </div>
-                </div>
-                <button onclick="appUpdate()">PUT Update Application</button>
-                <button class="danger" onclick="appDelete()">DELETE Application</button>
-            </div>
-
-            <div id="appResponse" class="response-box"></div>
-        </div>
+        <div id="qResponse" class="response-box"></div>
     </div>
 
     <!-- ==================== LOG ==================== -->
@@ -406,13 +221,6 @@ function clearLog() {
     document.getElementById("requestLog").textContent = "";
 }
 
-function showTab(tabName, btn) {
-    document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
-    document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
-    document.getElementById("tab-" + tabName).classList.add("active");
-    btn.classList.add("active");
-}
-
 async function apiFetch(path, method = "GET", body = null) {
     const url = BASE_URL + path;
     const options = {
@@ -435,227 +243,78 @@ async function apiFetch(path, method = "GET", body = null) {
     }
 }
 
-// ==================== JOB CRUD ====================
-async function jobList() {
-    const { ok, status, data } = await apiFetch("/api/jobs/", "GET");
-    showResponse("jobResponse", data, ok);
-    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} jobs`, "success");
+// ==================== QUESTION CRUD ====================
+async function qList() {
+    const { ok, status, data } = await apiFetch("/api/questions/", "GET");
+    showResponse("qResponse", data, ok);
+    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} questions`, "success");
     else setGlobalStatus(`❌ Failed (${status}): ${data.message}`, "error");
 }
-async function jobGetById() {
-    const id = document.getElementById("jobId").value;
-    if (!id) { showResponse("jobResponse", "Job ID required", false); return; }
-    const { ok, status, data } = await apiFetch(`/api/jobs/${id}/`, "GET");
-    showResponse("jobResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Fetched job id=${id}`, "success");
-    else setGlobalStatus(`❌ Job id=${id} not found (${status}): ${data.message}`, "error");
+
+async function qGetById() {
+    const id = document.getElementById("qId").value;
+    if (!id) { showResponse("qResponse", "Question ID required", false); return; }
+    const { ok, status, data } = await apiFetch(`/api/questions/${id}/`, "GET");
+    showResponse("qResponse", data, ok);
+    if (ok) setGlobalStatus(`✅ Fetched question id=${id}`, "success");
+    else setGlobalStatus(`❌ Question id=${id} not found (${status}): ${data.message}`, "error");
 }
-async function jobCreate() {
-    const hrId = document.getElementById("jobCreateHrId").value;
-    const title = document.getElementById("jobCreateTitle").value.trim();
-    const description = document.getElementById("jobCreateDescription").value.trim();
-    const exp = document.getElementById("jobCreateExp").value;
-    const minScore = document.getElementById("jobCreateMinScore").value;
-    const dueDate = document.getElementById("jobCreateDueDate").value;
-    if (!hrId || !title || !description || !dueDate) {
-        showResponse("jobResponse", "HR ID, Title, Description, Due Date required", false); return;
+
+async function qCreate() {
+    const interviewId = document.getElementById("qCreateInterviewId").value;
+    const questionText = document.getElementById("qCreateQuestion").value.trim();
+    if (!interviewId || !questionText) {
+        showResponse("qResponse", "Interview ID and Question Text required", false); return;
     }
+
     const payload = {
-        hr_id: Number(hrId), job_title: title, job_description: description,
-        required_exp: exp ? Number(exp) : 0,
-        minimum_score: minScore ? Number(minScore) : 0,
-        due_date: dueDate,
+        interview_id: Number(interviewId),
+        question_text: questionText,
+        answer_text: document.getElementById("qCreateAnswer").value.trim() || null,
+        answer_score: Number(document.getElementById("qCreateScore").value || 0),
+        time_taken: Number(document.getElementById("qCreateTime").value || 0),
     };
-    const { ok, status, data } = await apiFetch("/api/jobs/create/", "POST", payload);
-    showResponse("jobResponse", data, ok);
+
+    const { ok, status, data } = await apiFetch("/api/questions/create/", "POST", payload);
+    showResponse("qResponse", data, ok);
     if (ok) {
-        setGlobalStatus(`✅ Job created (job_id=${data.data.job_id})`, "success");
-        document.getElementById("jobId").value = data.data.job_id;
+        setGlobalStatus(`✅ Question created (id=${data.data.question_id})`, "success");
+        document.getElementById("qId").value = data.data.question_id;
     } else setGlobalStatus(`❌ Create failed (${status}): ${data.message}`, "error");
 }
-async function jobUpdate() {
-    const id = document.getElementById("jobId").value;
-    if (!id) { showResponse("jobResponse", "Job ID required", false); return; }
+
+async function qUpdate() {
+    const id = document.getElementById("qId").value;
+    if (!id) { showResponse("qResponse", "Question ID required", false); return; }
+
     const payload = {};
-    const title = document.getElementById("jobUpdateTitle").value.trim();
-    const description = document.getElementById("jobUpdateDescription").value.trim();
-    const exp = document.getElementById("jobUpdateExp").value;
-    const minScore = document.getElementById("jobUpdateMinScore").value;
-    const dueDate = document.getElementById("jobUpdateDueDate").value;
-    if (title) payload.job_title = title;
-    if (description) payload.job_description = description;
-    if (exp) payload.required_exp = Number(exp);
-    if (minScore) payload.minimum_score = Number(minScore);
-    if (dueDate) payload.due_date = dueDate;
+    const qText = document.getElementById("qUpdateQuestion").value.trim();
+    const aText = document.getElementById("qUpdateAnswer").value.trim();
+    const score = document.getElementById("qUpdateScore").value;
+    const time = document.getElementById("qUpdateTime").value;
+
+    if (qText) payload.question_text = qText;
+    if (aText) payload.answer_text = aText;
+    if (score) payload.answer_score = Number(score);
+    if (time) payload.time_taken = Number(time);
+
     if (Object.keys(payload).length === 0) {
-        showResponse("jobResponse", "Provide at least one field", false); return;
+        showResponse("qResponse", "Provide at least one field to update", false); return;
     }
-    const { ok, status, data } = await apiFetch(`/api/jobs/${id}/update/`, "PUT", payload);
-    showResponse("jobResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Job id=${id} updated`, "success");
+
+    const { ok, status, data } = await apiFetch(`/api/questions/${id}/update/`, "PUT", payload);
+    showResponse("qResponse", data, ok);
+    if (ok) setGlobalStatus(`✅ Question id=${id} updated`, "success");
     else setGlobalStatus(`❌ Update failed (${status}): ${data.message}`, "error");
-}
-async function jobDelete() {
-    const id = document.getElementById("jobId").value;
-    if (!id) { showResponse("jobResponse", "Job ID required", false); return; }
-    if (!confirm(`Delete job id=${id}?`)) return;
-    const { ok, status, data } = await apiFetch(`/api/jobs/${id}/delete/`, "DELETE");
-    showResponse("jobResponse", data, ok);
-    if (ok) setGlobalStatus(`🗑️ Job id=${id} deleted`, "info");
-    else setGlobalStatus(`❌ Delete failed (${status}): ${data.message}`, "error");
 }
 
-// ==================== JOB SKILL CRUD ====================
-async function jsList() {
-    const { ok, status, data } = await apiFetch("/api/job-skills/", "GET");
-    showResponse("jsResponse", data, ok);
-    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} job skills`, "success");
-    else setGlobalStatus(`❌ Failed (${status}): ${data.message}`, "error");
-}
-async function jsGetById() {
-    const id = document.getElementById("jsId").value;
-    if (!id) { showResponse("jsResponse", "JobSkill ID required", false); return; }
-    const { ok, status, data } = await apiFetch(`/api/job-skills/${id}/`, "GET");
-    showResponse("jsResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Fetched job skill id=${id}`, "success");
-    else setGlobalStatus(`❌ JobSkill id=${id} not found (${status}): ${data.message}`, "error");
-}
-async function jsCreate() {
-    const jobId = document.getElementById("jsCreateJobId").value;
-    const skillId = document.getElementById("jsCreateSkillId").value;
-    if (!jobId || !skillId) { showResponse("jsResponse", "Job ID and Skill ID required", false); return; }
-    const payload = { job_id: Number(jobId), skill_id: Number(skillId) };
-    const { ok, status, data } = await apiFetch("/api/job-skills/create/", "POST", payload);
-    showResponse("jsResponse", data, ok);
-    if (ok) {
-        setGlobalStatus(`✅ Job skill created (id=${data.data.job_skill_id})`, "success");
-        document.getElementById("jsId").value = data.data.job_skill_id;
-    } else setGlobalStatus(`❌ Create failed (${status}): ${data.message}`, "error");
-}
-async function jsUpdate() {
-    const id = document.getElementById("jsId").value;
-    if (!id) { showResponse("jsResponse", "JobSkill ID required", false); return; }
-    const newSkillId = document.getElementById("jsUpdateSkillId").value;
-    if (!newSkillId) { showResponse("jsResponse", "New Skill ID required", false); return; }
-    const { ok, status, data } = await apiFetch(`/api/job-skills/${id}/update/`, "PUT", { skill_id: Number(newSkillId) });
-    showResponse("jsResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Job skill id=${id} updated`, "success");
-    else setGlobalStatus(`❌ Update failed (${status}): ${data.message}`, "error");
-}
-async function jsDelete() {
-    const id = document.getElementById("jsId").value;
-    if (!id) { showResponse("jsResponse", "JobSkill ID required", false); return; }
-    if (!confirm(`Delete job skill id=${id}?`)) return;
-    const { ok, status, data } = await apiFetch(`/api/job-skills/${id}/delete/`, "DELETE");
-    showResponse("jsResponse", data, ok);
-    if (ok) setGlobalStatus(`🗑️ Job skill id=${id} deleted`, "info");
-    else setGlobalStatus(`❌ Delete failed (${status}): ${data.message}`, "error");
-}
-
-// ==================== JOB QUALIFICATION CRUD ====================
-async function jqList() {
-    const { ok, status, data } = await apiFetch("/api/job-qualifications/", "GET");
-    showResponse("jqResponse", data, ok);
-    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} job qualifications`, "success");
-    else setGlobalStatus(`❌ Failed (${status}): ${data.message}`, "error");
-}
-async function jqGetById() {
-    const id = document.getElementById("jqId").value;
-    if (!id) { showResponse("jqResponse", "JobQualification ID required", false); return; }
-    const { ok, status, data } = await apiFetch(`/api/job-qualifications/${id}/`, "GET");
-    showResponse("jqResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Fetched job qualification id=${id}`, "success");
-    else setGlobalStatus(`❌ JobQualification id=${id} not found (${status}): ${data.message}`, "error");
-}
-async function jqCreate() {
-    const jobId = document.getElementById("jqCreateJobId").value;
-    const qualId = document.getElementById("jqCreateQualificationId").value;
-    if (!jobId || !qualId) { showResponse("jqResponse", "Job ID and Qualification ID required", false); return; }
-    const payload = { job_id: Number(jobId), qualification_id: Number(qualId) };
-    const { ok, status, data } = await apiFetch("/api/job-qualifications/create/", "POST", payload);
-    showResponse("jqResponse", data, ok);
-    if (ok) {
-        setGlobalStatus(`✅ Job qualification created (id=${data.data.job_qualification_id})`, "success");
-        document.getElementById("jqId").value = data.data.job_qualification_id;
-    } else setGlobalStatus(`❌ Create failed (${status}): ${data.message}`, "error");
-}
-async function jqUpdate() {
-    const id = document.getElementById("jqId").value;
-    if (!id) { showResponse("jqResponse", "JobQualification ID required", false); return; }
-    const newQualId = document.getElementById("jqUpdateQualificationId").value;
-    if (!newQualId) { showResponse("jqResponse", "New Qualification ID required", false); return; }
-    const { ok, status, data } = await apiFetch(`/api/job-qualifications/${id}/update/`, "PUT", { qualification_id: Number(newQualId) });
-    showResponse("jqResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Job qualification id=${id} updated`, "success");
-    else setGlobalStatus(`❌ Update failed (${status}): ${data.message}`, "error");
-}
-async function jqDelete() {
-    const id = document.getElementById("jqId").value;
-    if (!id) { showResponse("jqResponse", "JobQualification ID required", false); return; }
-    if (!confirm(`Delete job qualification id=${id}?`)) return;
-    const { ok, status, data } = await apiFetch(`/api/job-qualifications/${id}/delete/`, "DELETE");
-    showResponse("jqResponse", data, ok);
-    if (ok) setGlobalStatus(`🗑️ Job qualification id=${id} deleted`, "info");
-    else setGlobalStatus(`❌ Delete failed (${status}): ${data.message}`, "error");
-}
-
-// ==================== APPLICATION CRUD ====================
-async function appList() {
-    const { ok, status, data } = await apiFetch("/api/applications/", "GET");
-    showResponse("appResponse", data, ok);
-    if (ok) setGlobalStatus(`📋 Fetched ${data.data.length} applications`, "success");
-    else setGlobalStatus(`❌ Failed (${status}): ${data.message}`, "error");
-}
-async function appGetById() {
-    const id = document.getElementById("appId").value;
-    if (!id) { showResponse("appResponse", "Application ID required", false); return; }
-    const { ok, status, data } = await apiFetch(`/api/applications/${id}/`, "GET");
-    showResponse("appResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Fetched application id=${id}`, "success");
-    else setGlobalStatus(`❌ Application id=${id} not found (${status}): ${data.message}`, "error");
-}
-async function appCreate() {
-    const candidateId = document.getElementById("appCreateCandidateId").value;
-    const jobId = document.getElementById("appCreateJobId").value;
-    const resumeId = document.getElementById("appCreateResumeId").value;
-    if (!candidateId || !jobId) {
-        showResponse("appResponse", "Candidate ID and Job ID required", false); return;
-    }
-    const payload = {
-        candidate_id: Number(candidateId),
-        job_id: Number(jobId),
-        resume_id: resumeId ? Number(resumeId) : null,
-    };
-    const { ok, status, data } = await apiFetch("/api/applications/create/", "POST", payload);
-    showResponse("appResponse", data, ok);
-    if (ok) {
-        setGlobalStatus(`✅ Application created (id=${data.data.application_id})`, "success");
-        document.getElementById("appId").value = data.data.application_id;
-    } else setGlobalStatus(`❌ Create failed (${status}): ${data.message}`, "error");
-}
-async function appUpdate() {
-    const id = document.getElementById("appId").value;
-    if (!id) { showResponse("appResponse", "Application ID required", false); return; }
-    const payload = {};
-    const newStatus = document.getElementById("appUpdateStatus").value;
-    const newResumeId = document.getElementById("appUpdateResumeId").value;
-    if (newStatus) payload.application_status = newStatus;
-    if (newResumeId) payload.resume_id = Number(newResumeId);
-    if (Object.keys(payload).length === 0) {
-        showResponse("appResponse", "Provide at least one field", false); return;
-    }
-    const { ok, status, data } = await apiFetch(`/api/applications/${id}/update/`, "PUT", payload);
-    showResponse("appResponse", data, ok);
-    if (ok) setGlobalStatus(`✅ Application id=${id} updated`, "success");
-    else setGlobalStatus(`❌ Update failed (${status}): ${data.message}`, "error");
-}
-async function appDelete() {
-    const id = document.getElementById("appId").value;
-    if (!id) { showResponse("appResponse", "Application ID required", false); return; }
-    if (!confirm(`Delete application id=${id}?`)) return;
-    const { ok, status, data } = await apiFetch(`/api/applications/${id}/delete/`, "DELETE");
-    showResponse("appResponse", data, ok);
-    if (ok) setGlobalStatus(`🗑️ Application id=${id} deleted`, "info");
+async function qDelete() {
+    const id = document.getElementById("qId").value;
+    if (!id) { showResponse("qResponse", "Question ID required", false); return; }
+    if (!confirm(`Delete question id=${id}?`)) return;
+    const { ok, status, data } = await apiFetch(`/api/questions/${id}/delete/`, "DELETE");
+    showResponse("qResponse", data, ok);
+    if (ok) setGlobalStatus(`🗑️ Question id=${id} deleted`, "info");
     else setGlobalStatus(`❌ Delete failed (${status}): ${data.message}`, "error");
 }
 </script>
