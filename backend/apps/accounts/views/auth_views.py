@@ -3,9 +3,28 @@ from django.contrib.auth.hashers import make_password
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from apps.accounts.models import User
+from apps.accounts.models import User, CandidateProfile, HRProfile
 from utils.response import success_response, error_response
 from utils.validators import parse_json, require_fields
+  
+# ============================================================
+# HELPER — role-specific ID bhi payload mein add karta hai
+# ============================================================
+def build_user_payload(user):
+    data = {
+        "user_id": user.user_id,
+        "full_name": user.full_name,
+        "email": user.email,
+        "phone_no": user.phone_no,
+        "role": user.role,
+    }
+    if user.role == "candidate":
+        profile, _ = CandidateProfile.objects.get_or_create(user=user)
+        data["candidate_id"] = profile.candidate_id
+    elif user.role == "hr":
+        profile, _ = HRProfile.objects.get_or_create(user=user)
+        data["hr_id"] = profile.hr_id
+    return data
 
 
 # ============================================================
@@ -93,12 +112,13 @@ def login(request):
     django_login(request, user)
 
     return success_response(
-        {
-            "user_id": user.user_id,
-            "full_name": user.full_name,
-            "email": user.email,
-            "role": user.role,
-        },
+        build_user_payload(user),
+        # {
+        #     "user_id": user.user_id,
+        #     "full_name": user.full_name,
+        #     "email": user.email,
+        #     "role": user.role,
+        # },
         message="Login successful",
     )
 
@@ -128,12 +148,20 @@ def me(request):
         return error_response("Not authenticated", status=401)
 
     user = request.user
-    return success_response({
-        "user_id": user.user_id,
-        "full_name": user.full_name,
-        "email": user.email,
-        "phone_no": user.phone_no,
-        "role": user.role,
-        "is_active": user.is_active,
-        "created_at": user.created_at,
-    }, message="Current user")
+    payload = build_user_payload(user)
+    payload["is_active"] = user.is_active
+    payload["created_at"] = user.created_at
+    return success_response(payload, message="Current user")
+
+
+    # user = request.user
+    # return success_response(
+    #     {
+    #     "user_id": user.user_id,
+    #     "full_name": user.full_name,
+    #     "email": user.email,
+    #     "phone_no": user.phone_no,
+    #     "role": user.role,
+    #     "is_active": user.is_active,
+    #     "created_at": user.created_at,
+    # }, message="Current user") 

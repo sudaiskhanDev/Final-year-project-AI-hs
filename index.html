@@ -1,444 +1,189 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Services — API Tester</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: #f0f2f5;
-            color: #1a1a1a;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        h1 { text-align: center; margin-bottom: 8px; }
-        .subtitle { text-align: center; color: #666; margin-bottom: 24px; font-size: 14px; }
-        .container { max-width: 1050px; margin: 0 auto; }
-        .card {
-            background: #fff;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .card h2 {
-            font-size: 18px;
-            margin-bottom: 15px;
-            color: #333;
-            border-bottom: 2px solid #e0e0e0;
-            padding-bottom: 8px;
-        }
-        .row { display: flex; gap: 15px; flex-wrap: wrap; }
-        .col { flex: 1; min-width: 180px; }
-        label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 5px;
-            color: #555;
-        }
-        input, select, textarea {
-            width: 100%;
-            padding: 8px 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 14px;
-            margin-bottom: 10px;
-            font-family: inherit;
-        }
-        textarea { resize: vertical; min-height: 70px; }
-        input[type="file"] {
-            border: 1px dashed #4a90e2;
-            background: #f0f7ff;
-            cursor: pointer;
-        }
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: #4a90e2;
-            box-shadow: 0 0 0 2px rgba(74,144,226,0.2);
-        }
-        button {
-            background: #4a90e2;
-            color: #fff;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-right: 8px;
-            margin-bottom: 8px;
-        }
-        button:hover { background: #357abd; }
-        button.danger { background: #e74c3c; }
-        button.danger:hover { background: #c0392b; }
-        button.success { background: #27ae60; }
-        button.success:hover { background: #229954; }
-        button.secondary { background: #7f8c8d; }
-        button.secondary:hover { background: #626f70; }
-        .status {
-            padding: 10px 14px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-        .status.info { background: #d1ecf1; color: #0c5460; }
-        .status.success { background: #d4edda; color: #155724; }
-        .status.error { background: #f8d7da; color: #721c24; }
-        .status.idle { background: #e2e3e5; color: #383d41; }
-        .status.loading { background: #fff3cd; color: #856404; }
-        .response-box {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            padding: 12px;
-            margin-top: 10px;
-            font-size: 13px;
-            font-family: 'Consolas', monospace;
-            max-height: 500px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-        .response-box.success { border-left: 4px solid #27ae60; }
-        .response-box.error { border-left: 4px solid #e74c3c; }
-        .sub-section {
-            margin-top: 15px;
-            padding: 12px;
-            background: #f8f9fa;
-            border-radius: 4px;
-        }
-        .sub-section h3 {
-            font-size: 14px;
-            margin-bottom: 10px;
-            color: #333;
-        }
-        .hint {
-            font-size: 12px;
-            color: #666;
-            font-style: italic;
-            margin-top: -5px;
-            margin-bottom: 10px;
-        }
-        .file-info {
-            font-size: 12px;
-            color: #27ae60;
-            font-weight: 600;
-            margin-top: -5px;
-            margin-bottom: 10px;
-        }
-        .tabs {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #e0e0e0;
-            flex-wrap: wrap;
-        }
-        .tab {
-            padding: 8px 16px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            color: #666;
-            border-bottom: 3px solid transparent;
-            margin-bottom: -2px;
-        }
-        .tab:hover { color: #4a90e2; }
-        .tab.active {
-            color: #4a90e2;
-            border-bottom-color: #4a90e2;
-        }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .loading-spinner {
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #4a90e2;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recruitment Admin Dashboard</title>
+<style>
+:root{--bg:#f3f4f6;--ln:#e5e7eb;--tx:#1f2937;--mu:#6b7280;--ok:#15803d;--bad:#b91c1c;--wn:#a16207}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+h1{font-size:18px;margin:0}h3{margin:0 0 12px;font-size:15px}a{color:#1f2937}
+[hidden]{display:none!important}
+.mut,small{color:var(--mu)}small{font-size:11px}.sp{flex:1}
+.card{background:#fff;border:1px solid var(--ln);border-radius:10px;padding:16px}
+.lg{min-height:100vh;display:grid;place-items:center;padding:16px}.lgc{width:360px;display:grid;gap:12px}.lgc h2{margin:0}
+label{display:grid;gap:4px;font-size:12px;font-weight:600;color:#4b5563;text-transform:capitalize}
+input,select,textarea{font:inherit;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;background:#fff;color:var(--tx);width:100%}
+input:focus,select:focus,textarea:focus,.btn:focus-visible{outline:2px solid #6b7280;outline-offset:-1px}
+.btn{font:inherit;padding:7px 12px;border:1px solid #d1d5db;background:#fff;border-radius:7px;cursor:pointer;color:var(--tx);white-space:nowrap}
+.btn:hover{background:#f3f4f6}.pri{background:#374151;border-color:#374151;color:#fff}.pri:hover{background:#1f2937}.dng{color:var(--bad)}.ic{padding:6px 10px}
+.err{color:var(--bad);font-size:13px}
+aside{position:fixed;inset:0 auto 0 0;width:236px;background:#fff;border-right:1px solid var(--ln);overflow:auto;padding:14px 10px;z-index:20}
+.brand{font-weight:700;font-size:16px;padding:4px 10px 8px}.brand b{color:var(--mu);font-weight:600;margin-left:5px}
+aside h4{margin:14px 10px 4px;font-size:12px;color:#9ca3af;font-weight:600}
+aside a{display:flex;justify-content:space-between;padding:7px 10px;border-radius:7px;color:#374151;text-decoration:none}
+aside a:hover{background:#f3f4f6}aside a.on{background:#e5e7eb;font-weight:600}
+aside em{font-style:normal;font-size:11px;background:#f3f4f6;border-radius:9px;padding:0 7px;color:var(--mu)}em:empty{display:none}
+main{margin-left:236px}
+.top{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:10px;padding:10px 22px;background:#fffd;backdrop-filter:blur(6px);border-bottom:1px solid var(--ln)}
+.chip{font-size:12px;background:#f3f4f6;border:1px solid var(--ln);border-radius:20px;padding:4px 10px}
+#view{padding:22px}
+.bar{display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap}.bar input{max-width:300px}
+.gr{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:12px}.g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.big{font-size:26px;font-weight:700}
+.tw{overflow:auto;background:#fff;border:1px solid var(--ln);border-radius:10px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid #f0f1f3;white-space:nowrap}
+th{background:#f9fafb;font-size:12px;color:var(--mu);cursor:pointer;text-transform:capitalize}
+tr:hover td{background:#fafafa}.ac{text-align:right}.ac .btn{padding:3px 8px;font-size:12px;margin-left:4px}
+.pg{display:flex;gap:8px;align-items:center;margin-top:10px}.pg select{width:auto}
+.bd{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;background:#e5e7eb;color:#374151}
+.bd.ok{background:#dcfce7;color:var(--ok)}.bd.bad{background:#fee2e2;color:var(--bad)}.bd.warn{background:#fef3c7;color:var(--wn)}
+.br{display:grid;grid-template-columns:120px 1fr 30px;gap:8px;align-items:center;margin:7px 0;font-size:13px}
+.br i{background:#eef0f2;border-radius:6px;height:10px;overflow:hidden}.br b{display:block;height:100%;background:#4b5563}.br em{font-style:normal;text-align:right}
+.mo{position:fixed;inset:0;background:#1118276b;display:grid;place-items:center;z-index:50;padding:16px}
+.md{background:#fff;border-radius:12px;width:560px;max-width:100%;max-height:90vh;overflow:auto;padding:18px}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.mh h3{margin:0}
+.fm,#fm{display:grid;gap:12px}.ac2{display:flex;justify-content:flex-end;gap:8px}
+.js{background:#f9fafb;border:1px solid var(--ln);border-radius:8px;padding:12px;overflow:auto;max-height:420px;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;margin:12px 0 0}
+#tt{position:fixed;right:16px;bottom:16px;display:grid;gap:8px;z-index:60}.ts{background:#1f2937;color:#fff;padding:9px 14px;border-radius:8px;max-width:340px}.ts.bad{background:#b91c1c}
+hr{border:0;border-top:1px solid var(--ln);margin:16px 0}#burger{display:none}
+@media(max-width:860px){aside{transform:translateX(-100%);transition:.2s}aside.open{transform:none}main{margin-left:0}#burger{display:inline-block}}
+</style>
 </head>
 <body>
-
-<div class="container">
-    <h1>🤖 AI Services — API Tester</h1>
-    <p class="subtitle">Base: <code>http://127.0.0.1:8000</code> — Question Generator + CV Parser</p>
-
-    <div id="globalStatus" class="status idle">Ready.</div>
-
-    <!-- ==================== TABS ==================== -->
-    <div class="card">
-        <div class="tabs">
-            <button class="tab active" onclick="showTab('question', this)">❓ Generate Question</button>
-            <button class="tab" onclick="showTab('parsecv', this)">📄 Parse CV (upload)</button>
-            <button class="tab" onclick="showTab('parsebyid', this)">🆔 Parse CV (by Resume ID)</button>
-        </div>
-
-        <!-- ==================== GENERATE QUESTION ==================== -->
-        <div id="tab-question" class="tab-content active">
-            <h2>❓ Generate Interview Question</h2>
-            <div class="hint">⚠️ Pehli baar model load hone mein 30-60 seconds lag sakte hain</div>
-
-            <div class="row">
-                <div class="col">
-                    <label>Job Title</label>
-                    <input type="text" id="qJobTitle" value="Python Developer">
-                </div>
-                <div class="col">
-                    <label>Required Experience</label>
-                    <input type="text" id="qExperience" value="2 years">
-                </div>
-                <div class="col">
-                    <label>Question Type</label>
-                    <select id="qQuestionType">
-                        <option value="Scenario" selected>Scenario</option>
-                        <option value="Technical">Technical</option>
-                        <option value="Behavioral">Behavioral</option>
-                        <option value="Problem Solving">Problem Solving</option>
-                    </select>
-                </div>
-            </div>
-
-            <label>Job Description</label>
-            <textarea id="qDescription">We need a Django developer with 2+ years of experience building REST APIs and working with databases.</textarea>
-
-            <label>Skills (comma-separated)</label>
-            <textarea id="qSkills">Python, Django, PostgreSQL, REST APIs</textarea>
-
-            <button class="success" onclick="generateQuestion()">🤖 Generate Question</button>
-            <div id="questionResponse" class="response-box"></div>
-        </div>
-
-        <!-- ==================== PARSE CV (UPLOAD) ==================== -->
-        <div id="tab-parsecv" class="tab-content">
-            <h2>📄 Parse CV (upload file)</h2>
-            <div class="hint">⚠️ Pehli baar NER model load hone mein 30-60 seconds lag sakte hain</div>
-
-            <div class="sub-section">
-                <h3>Upload CV File</h3>
-                <label>Select PDF or DOCX</label>
-                <input type="file" id="cvFile" accept=".pdf,.docx">
-                <div class="file-info" id="cvFileInfo"></div>
-                <button class="success" onclick="parseCV()">📄 Parse CV</button>
-            </div>
-
-            <div id="parseCvResponse" class="response-box"></div>
-        </div>
-
-        <!-- ==================== PARSE CV (BY ID) ==================== -->
-        <div id="tab-parsebyid" class="tab-content">
-            <h2>🆔 Parse CV by Resume ID</h2>
-            <div class="hint">⚠️ Login required — sirf apna resume parse kar sakte ho</div>
-
-            <div class="sub-section">
-                <h3>Resume ID</h3>
-                <label>Resume ID</label>
-                <input type="number" id="resumeId" value="1">
-                <div class="hint">Resume ID from /api/resumes/ (must belong to logged-in user)</div>
-                <button class="success" onclick="parseCVById()">🆔 Parse CV by ID</button>
-            </div>
-
-            <div id="parseCvByIdResponse" class="response-box"></div>
-        </div>
-    </div>
-
-    <!-- ==================== LOG ==================== -->
-    <div class="card">
-        <h2>📋 Request Log</h2>
-        <button class="secondary" onclick="clearLog()">Clear Log</button>
-        <div id="requestLog" class="response-box" style="max-height: 400px;"></div>
-    </div>
-</div>
-
+<div id="app">
+<aside id="side"></aside>
+<main><header class="top"><button class="btn ic" id="burger">☰</button><h1 id="ttl"></h1><span class="sp"></span><input id="api" title="API base URL" style="width:260px"><button class="btn" id="rf">Refresh</button></header><div id="view"></div></main></div>
+<div id="mo" class="mo" hidden><div class="md"><div class="mh"><h3 id="mt"></h3><button class="btn ic" onclick="cm()">✕</button></div><div id="mb"></div></div></div>
+<div id="tt"></div>
 <script>
-const BASE_URL = "http://127.0.0.1:8000";
-
-function setGlobalStatus(msg, type = "idle", loading = false) {
-    const el = document.getElementById("globalStatus");
-    el.className = "status " + type;
-    if (loading) {
-        el.innerHTML = '<span class="loading-spinner"></span>' + msg;
-    } else {
-        el.textContent = msg;
-    }
-}
-
-function showResponse(elementId, data, isSuccess) {
-    const el = document.getElementById(elementId);
-    el.className = "response-box " + (isSuccess ? "success" : "error");
-    el.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
-}
-
-function logRequest(method, url, status, body) {
-    const log = document.getElementById("requestLog");
-    const time = new Date().toLocaleTimeString();
-    const entry = `[${time}] ${method} ${url} → ${status}\n${body ? JSON.stringify(body, null, 2).substring(0, 500) : ""}\n${"─".repeat(60)}\n`;
-    log.textContent = entry + log.textContent;
-}
-
-function clearLog() {
-    document.getElementById("requestLog").textContent = "";
-}
-
-function showTab(tabName, btn) {
-    document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
-    document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
-    document.getElementById("tab-" + tabName).classList.add("active");
-    btn.classList.add("active");
-}
-
-// JSON fetch
-async function apiFetch(path, method = "GET", body = null) {
-    const url = BASE_URL + path;
-    const options = {
-        method: method,
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-    };
-    if (body) options.body = JSON.stringify(body);
-
-    try {
-        const res = await fetch(url, options);
-        let data;
-        try { data = await res.json(); }
-        catch { data = { raw: await res.text() }; }
-        logRequest(method, url, res.status, data);
-        return { ok: res.ok, status: res.status, data };
-    } catch (err) {
-        logRequest(method, url, "NETWORK ERROR", err.message);
-        return { ok: false, status: 0, data: { error: err.message } };
-    }
-}
-
-// Form-data fetch (file upload)
-async function apiUpload(path, formData) {
-    const url = BASE_URL + path;
-    try {
-        const res = await fetch(url, {
-            method: "POST",
-            credentials: "include",
-            body: formData,
-        });
-        let data;
-        try { data = await res.json(); }
-        catch { data = { raw: await res.text() }; }
-        logRequest("POST (file)", url, res.status, data);
-        return { ok: res.ok, status: res.status, data };
-    } catch (err) {
-        logRequest("POST (file)", url, "NETWORK ERROR", err.message);
-        return { ok: false, status: 0, data: { error: err.message } };
-    }
-}
-
-// File info display
-document.addEventListener("DOMContentLoaded", () => {
-    const fileInput = document.getElementById("cvFile");
-    if (fileInput) {
-        fileInput.addEventListener("change", () => {
-            const info = document.getElementById("cvFileInfo");
-            if (fileInput.files.length > 0) {
-                const f = fileInput.files[0];
-                info.textContent = `✅ Selected: ${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
-            } else {
-                info.textContent = "";
-            }
-        });
-    }
-});
-
-// ==================== GENERATE QUESTION ====================
-async function generateQuestion() {
-    const title = document.getElementById("qJobTitle").value.trim();
-    const desc = document.getElementById("qDescription").value.trim();
-    const exp = document.getElementById("qExperience").value.trim();
-    const skills = document.getElementById("qSkills").value.trim();
-    const type = document.getElementById("qQuestionType").value;
-
-    if (!title || !desc || !exp || !skills) {
-        showResponse("questionResponse", "All fields required", false);
-        return;
-    }
-
-    setGlobalStatus("Generating question... (model loading, 30-60s first time)", "loading", true);
-    showResponse("questionResponse", "Loading model... please wait (first time slow)", false);
-
-    const payload = {
-        job_title: title,
-        job_description: desc,
-        required_experience: exp,
-        skills: skills,
-        question_type: type,
-    };
-
-    const { ok, status, data } = await apiFetch("/api/ai/generate-question/", "POST", payload);
-    showResponse("questionResponse", data, ok);
-
-    if (ok) {
-        setGlobalStatus(`✅ Question generated successfully`, "success");
-    } else {
-        setGlobalStatus(`❌ Failed (${status}): ${data.message || data.detail || "error"}`, "error");
-    }
-}
-
-// ==================== PARSE CV (UPLOAD) ====================
-async function parseCV() {
-    const fileInput = document.getElementById("cvFile");
-    if (!fileInput.files || fileInput.files.length === 0) {
-        showResponse("parseCvResponse", "Please select a file first", false);
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", fileInput.files[0]);
-
-    setGlobalStatus("Parsing CV... (NER model loading, 30-60s first time)", "loading", true);
-    showResponse("parseCvResponse", "Parsing... please wait (first time slow)", false);
-
-    const { ok, status, data } = await apiUpload("/api/ai/parse-cv/", formData);
-    showResponse("parseCvResponse", data, ok);
-
-    if (ok) {
-        setGlobalStatus(`✅ CV parsed successfully`, "success");
-    } else {
-        setGlobalStatus(`❌ Parse failed (${status}): ${data.message || data.detail || "error"}`, "error");
-    }
-}
-
-// ==================== PARSE CV (BY ID) ====================
-async function parseCVById() {
-    const id = document.getElementById("resumeId").value;
-    if (!id) {
-        showResponse("parseCvByIdResponse", "Resume ID required", false);
-        return;
-    }
-
-    setGlobalStatus("Parsing CV by ID... (loading)", "loading", true);
-    showResponse("parseCvByIdResponse", "Parsing... please wait", false);
-
-    const { ok, status, data } = await apiFetch(`/api/ai/parse-cv/${id}/`, "POST");
-    showResponse("parseCvByIdResponse", data, ok);
-
-    if (ok) {
-        setGlobalStatus(`✅ Resume id=${id} parsed successfully`, "success");
-    } else {
-        setGlobalStatus(`❌ Failed (${status}): ${data.message || data.detail || "error"}`, "error");
-    }
-}
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let API;try{API=localStorage.getItem('api')}catch(e){}API=API||'http://localhost:8000/api';
+const D={},ST={};
+// field spec: name:type:flags  (types t e p n d dt ta f s=a,b fk=resource | flags c=create-only u=update-only r=required)
+const pf=s=>s.split(' ').map(x=>{const[n,t='t',fl='']=x.split(':'),[ty,v]=t.split('=');return{n,ty,v:v&&v.split(','),fl}});
+const G=(t,g,b,id,cols,f,x={})=>({t,g,b,id,cols:cols.split(' '),f:pf(f),...x});
+const R={
+users:G('Users','Accounts','users','user_id','user_id full_name email phone_no role is_active created_at','full_name:t:r email:e:r phone_no role:s=candidate,hr,admin:r password:p:r confirm_password:p:cr',{cu:'auth/register/'}),
+hr:G('HR Profiles','Accounts','hr-profiles','hr_id','hr_id user_id department designation created_at','user_id:fk=users:cr department:t:r designation:t:r'),
+cand:G('Candidate Profiles','Accounts','candidate-profiles','candidate_id','candidate_id user_id date_of_birth gender address created_at','user_id:fk=users:cr date_of_birth:d gender:s=male,female,other address:ta'),
+skills:G('Skills','Master Data','skills','skill_id','skill_id skill_name created_at','skill_name:t:r',{m:1}),
+quals:G('Qualifications','Master Data','qualifications','qualification_id','qualification_id qualification_name created_at','qualification_name:t:r',{m:1}),
+langs:G('Languages','Master Data','languages','lang_id','lang_id language_name created_at','language_name:t:r',{m:1}),
+resumes:G('Resumes','Candidates','resumes','resume_id','resume_id candidate_id file_name file_path uploaded_at','candidate_id:fk=cand:cr file:f:cr file_name:t:u file_path:t:u',{mp:1}),
+experiences:G('Experiences','Candidates','experiences','exp_id','exp_id candidate_id company_name designation start_date end_date','candidate_id:fk=cand:cr company_name:t:r designation:t:r start_date:d:r end_date:d'),
+cskills:G('Candidate Skills','Candidates','candidate-skills','candidate_skill_id','candidate_skill_id candidate_id skill_id skill_name','candidate_id:fk=cand:cr skill_id:fk=skills:r'),
+cquals:G('Candidate Qualifications','Candidates','candidate-qualifications','cq_id','cq_id candidate_id qualification_id qualification_name','candidate_id:fk=cand:cr qualification_id:fk=quals:r'),
+clangs:G('Candidate Languages','Candidates','candidate-languages','cand_lang_id','cand_lang_id candidate_id lang_id language_name proficiency_lvl','candidate_id:fk=cand:cr lang_id:fk=langs:r proficiency_lvl:s=basic,intermediate,fluent,native'),
+jobs:G('Jobs','Recruitment','jobs','job_id','job_id hr_id job_title required_exp minimum_score due_date created_at','hr_id:fk=hr:cr job_title:t:r job_description:ta:r required_exp:n minimum_score:n due_date:d:r'),
+jskills:G('Job Skills','Recruitment','job-skills','job_skill_id','job_skill_id job_id skill_id skill_name','job_id:fk=jobs:cr skill_id:fk=skills:r'),
+jquals:G('Job Qualifications','Recruitment','job-qualifications','job_qualification_id','job_qualification_id job_id qualification_id qualification_name','job_id:fk=jobs:cr qualification_id:fk=quals:r'),
+apps:G('Applications','Recruitment','applications','application_id','application_id candidate_id job_id resume_id application_status applied_at','candidate_id:fk=cand:cr job_id:fk=jobs:cr resume_id:fk=resumes application_status:s=applied,shortlisted,rejected,hired:u'),
+matchings:G('Resume Matching','Hiring','resume-matchings','matching_id','matching_id application_id skills_score experience_score qualification_score total_score status evaluated_at','application_id:fk=apps:cr skills_score:n experience_score:n qualification_score:n total_score:n status:s=pending,completed,failed'),
+interviews:G('AI Interviews','Hiring','ai-interviews','interview_id','interview_id application_id interview_mode interview_round overall_score interview_status started_at completed_at','application_id:fk=apps:cr interview_mode:s=ai,human,video interview_round video_path overall_score:n interview_status:s=pending,in_progress,completed,cancelled started_at:dt completed_at:dt'),
+questions:G('Questions','Hiring','questions','question_id','question_id interview_id question_text answer_score time_taken','interview_id:fk=interviews:cr question_text:ta:r answer_text:ta answer_score:n time_taken:n'),
+videos:G('Video Analysis','Hiring','video-analyses','analysis_id','analysis_id interview_id eye_contact_score dress_code dress_score confidence_score overall_video_score analyzed_at','interview_id:fk=interviews:cr eye_contact_score:n dress_code dress_score:n confidence_score:n overall_video_score:n'),
+results:G('Hiring Results','Hiring','hiring-results','result_id','result_id application_id final_score ranking selection_status decision_date','application_id:fk=apps:cr final_score:n ranking:n selection_status:s=shortlisted,selected,on_hold,rejected remarks:ta decision_date:d')
+};
+const U={l:r=>`/${r.b}/`,a:r=>r.cu?'/'+r.cu:r.m?`/${r.b}/`:`/${r.b}/create/`,o:(r,i)=>`/${r.b}/${i}/`,u:(r,i)=>r.m?`/${r.b}/${i}/`:`/${r.b}/${i}/update/`,d:(r,i)=>r.m?`/${r.b}/${i}/`:`/${r.b}/${i}/delete/`};
+async function call(m,p,b){const o={method:m,credentials:'include',headers:{}};
+ if(b instanceof FormData)o.body=b;else if(b!==undefined){o.body=JSON.stringify(b);o.headers['Content-Type']='application/json'}
+ try{const r=await fetch(API+p,o);let j;try{j=await r.json()}catch(e){j={success:false,message:'Non-JSON response ('+r.status+')'}}j._s=r.status;return j}
+ catch(e){return{success:false,message:'Network/CORS error: '+e.message,_s:0}}}
+const un=i=>{const u=(D.users||[]).find(x=>x.user_id==i);return u?u.full_name:'#'+i};
+const L={users:x=>`${x.full_name} (${x.email})`,hr:x=>un(x.user_id)+' · '+(x.department||'HR'),cand:x=>un(x.user_id),skills:x=>x.skill_name,quals:x=>x.qualification_name,langs:x=>x.language_name,jobs:x=>x.job_title,resumes:x=>x.file_name,
+ apps:x=>lab('cand',x.candidate_id)+' → '+lab('jobs',x.job_id),interviews:x=>`#${x.interview_id} ${x.interview_round} · ${lab('apps',x.application_id)}`};
+const lab=(k,i)=>{const it=(D[k]||[]).find(x=>x[R[k].id]==i);return it&&L[k]?L[k](it):'#'+i};
+const load=async k=>{const j=await call('GET',U.l(R[k]));if(j.success){D[k]=j.data;return''}D[k]=D[k]||[];return j.message};
+const loadAll=async()=>{const e=(await Promise.all(Object.keys(R).map(load))).filter(Boolean);if(e.length)toast(`${e.length} of ${Object.keys(R).length} endpoints failed: ${e[0]}`,1)};
+function toast(m,bad){const e=document.createElement('div');e.className='ts'+(bad?' bad':'');e.textContent=m;$('#tt').append(e);setTimeout(()=>e.remove(),3800)}
+const cm=()=>$('#mo').hidden=true,openM=()=>$('#mo').hidden=false;
+const BC={hired:'ok',selected:'ok',completed:'ok',true:'ok',fluent:'ok',native:'ok',shortlisted:'ok',admin:'ok',rejected:'bad',failed:'bad',cancelled:'bad',false:'bad',pending:'warn',on_hold:'warn',in_progress:'warn'};
+const bg=v=>`<span class="bd ${BC[v]||''}">${esc(v)}</span>`;
+const fkOf=(r,c)=>{const f=r.f.find(x=>x.n===c&&x.ty==='fk');return f&&f.v[0]};
+const ct=(r,row,c)=>{const v=row[c],k=fkOf(r,c);return v==null?'':k?lab(k,v):/_at$/.test(c)?String(v).replace('T',' ').slice(0,16):String(v)};
+function ch(r,row,c){const v=row[c],k=fkOf(r,c);if(v==null||v==='')return'<span class=mut>—</span>';
+ if(k)return`${esc(lab(k,v))} <small>#${v}</small>`;
+ if(c==='file_path'&&String(v)[0]==='/')return`<a href="${esc(new URL(API).origin+v)}" target=_blank>${esc(v)}</a>`;
+ if(typeof v==='boolean'||(typeof v==='string'&&/status|role|mode|lvl$/.test(c)))return bg(v);
+ const t=ct(r,row,c);return esc(t.length>70?t.slice(0,70)+'…':t)}
+// ---------- navigation ----------
+function nav(){const h=location.hash.slice(1)||'overview',gs={Workspace:[]},it=(k,t)=>`<a href="#${k}" class="${h===k?'on':''}"><span>${t}</span><em>${k in R?(D[k]||[]).length:''}</em></a>`;
+ Object.entries(R).forEach(([k,r])=>(gs[r.g]=gs[r.g]||[]).push(it(k,r.t)));
+ gs.Workspace=[it('overview','Overview'),it('ai','AI Tools'),it('api','API Explorer')];
+ $('#side').innerHTML='<div class=brand>Recruit<b>Admin</b></div>'+Object.entries(gs).map(([g,a])=>`<h4>${g}</h4>`+a.join('')).join('')}
+function route(){const h=location.hash.slice(1)||'overview';nav();$('#ttl').textContent=h==='overview'?'Overview':h==='ai'?'AI Tools':h==='api'?'API Explorer':R[h]?.t||'';$('#side').classList.remove('open');
+ h==='overview'?overview():h==='ai'?ai():h==='api'?apix():R[h]?showRes(h):location.hash='overview'}
+// ---------- overview ----------
+const cnt=(a,f)=>a.reduce((o,x)=>(o[x[f]]=(o[x[f]]||0)+1,o),{});
+const bars=(t,o)=>{const m=Math.max(1,...Object.values(o));return`<div class=card><h3>${t}</h3>${Object.entries(o).map(([k,v])=>`<div class=br><span>${esc(k)}</span><i><b style="width:${v/m*100}%"></b></i><em>${v}</em></div>`).join('')||'<span class=mut>No data</span>'}</div>`};
+const mini=(t,h,rows)=>`<div class=card><h3>${t}</h3><div class=tw style="border:0"><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')||'<tr><td class=mut>No data</td></tr>'}</tbody></table></div></div>`;
+function overview(){const g=k=>D[k]||[],avg=(a,f)=>a.length?(a.reduce((s,x)=>s+Number(x[f]||0),0)/a.length).toFixed(1):'—',today=new Date().toISOString().slice(0,10);
+ const S=[['Users',g('users').length],['HR profiles',g('hr').length],['Candidates',g('cand').length],['Jobs',g('jobs').length],['Open jobs',g('jobs').filter(j=>j.due_date>=today).length],['Applications',g('apps').length],['Hired',g('apps').filter(a=>a.application_status==='hired').length],['Interviews',g('interviews').length],['Selected',g('results').filter(x=>x.selection_status==='selected').length],['Avg match score',avg(g('matchings'),'total_score')],['Avg interview score',avg(g('interviews'),'overall_score')],['Skills',g('skills').length]];
+ const perHr=Object.fromEntries(Object.entries(cnt(g('jobs'),'hr_id')).map(([k,v])=>[lab('hr',k),v]));
+ $('#view').innerHTML=`<div class=gr>${S.map(([a,b])=>`<div class=card><div class=mut>${a}</div><div class=big>${b}</div></div>`).join('')}</div>
+ <div class="gr g2">${bars('Users by role',cnt(g('users'),'role'))}${bars('Applications by status',cnt(g('apps'),'application_status'))}${bars('Hiring results',cnt(g('results'),'selection_status'))}${bars('Interviews by status',cnt(g('interviews'),'interview_status'))}${bars('CV matching status',cnt(g('matchings'),'status'))}${bars('Jobs per HR',perHr)}</div>
+ <div class="gr g2">${mini('Recent applications',['Candidate','Job','Status'],g('apps').slice(0,6).map(a=>[esc(lab('cand',a.candidate_id)),esc(lab('jobs',a.job_id)),bg(a.application_status)]))}
+ ${mini('Top ranked results',['Application','Score','Rank','Status'],[...g('results')].sort((a,b)=>b.final_score-a.final_score).slice(0,6).map(x=>[esc(lab('apps',x.application_id)),x.final_score,x.ranking,bg(x.selection_status)]))}</div>`}
+// ---------- resource table ----------
+async function showRes(k){const r=R[k];Object.assign(ST,{k,q:'',p:1,n:10,s:null,d:1});
+ $('#view').innerHTML=`<div class=bar><input id=q placeholder="Search ${r.t}…"><span class=sp></span><button class=btn data-a=x>Export CSV</button><button class="btn pri" data-a=n>+ Add new</button></div><div id=tb><span class=mut>Loading…</span></div>`;
+ const m=await load(k);if(m)toast(m,1);if(ST.k===k)draw()}
+function draw(){const k=ST.k,r=R[k];let rows=(D[k]||[]).map(x=>({x,t:r.cols.map(c=>ct(r,x,c)).join(' ').toLowerCase()}));
+ if(ST.q)rows=rows.filter(o=>o.t.includes(ST.q));
+ if(ST.s){const c=ST.s,d=ST.d;rows.sort((a,b)=>{const p=a.x[c],q=b.x[c];return(typeof p==='number'&&typeof q==='number'?p-q:String(p??'').localeCompare(String(q??''),undefined,{numeric:true}))*d})}
+ const pages=Math.max(1,Math.ceil(rows.length/ST.n));ST.p=Math.min(ST.p,pages);const sl=rows.slice((ST.p-1)*ST.n,ST.p*ST.n);
+ $('#tb').innerHTML=`<div class=tw><table><thead><tr>${r.cols.map(c=>`<th data-c="${c}">${c.replace(/_/g,' ')}${ST.s===c?(ST.d>0?' ▲':' ▼'):''}</th>`).join('')}<th></th></tr></thead><tbody>${sl.map(({x})=>`<tr>${r.cols.map(c=>`<td>${ch(r,x,c)}</td>`).join('')}<td class=ac><button class=btn data-a=v data-i=${x[r.id]}>View</button><button class=btn data-a=e data-i=${x[r.id]}>Edit</button><button class="btn dng" data-a=d data-i=${x[r.id]}>Delete</button></td></tr>`).join('')||'<tr><td colspan=99 class=mut>No records yet</td></tr>'}</tbody></table></div>
+ <div class=pg><span class=mut>${rows.length} records</span><span class=sp></span><select id=ps>${[10,25,50,100].map(n=>`<option${n===ST.n?' selected':''}>${n}</option>`).join('')}</select><button class=btn data-p=-1>‹</button><span>${ST.p} / ${pages}</span><button class=btn data-p=1>›</button></div>`}
+const csv=()=>{const r=R[ST.k],t=[r.cols.join(','),...(D[ST.k]||[]).map(x=>r.cols.map(c=>`"${ct(r,x,c).replace(/"/g,'""')}"`).join(','))].join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download=ST.k+'.csv';a.click()};
+async function viewRow(k,i){const r=R[k],j=await call('GET',U.o(r,i));$('#mt').textContent=r.t+' #'+i;$('#mb').innerHTML=`<pre class=js style="margin:0">${esc(JSON.stringify(j.data??j,null,2))}</pre>`;openM()}
+function form(k,row){const r=R[k],u=!!row,fs=r.f.filter(f=>u?!f.fl.includes('c'):!f.fl.includes('u'));
+ $('#mt').textContent=(u?'Edit ':'Add ')+r.t+(u?' #'+row[r.id]:'');
+ $('#mb').innerHTML=`<form id=fm>${fs.map(f=>{const v=u&&row[f.n]!=null?row[f.n]:'',rq=f.fl.includes('r')&&(!u||f.ty!=='p')?' required':'',nm=` name=${f.n}${rq}`;let i;
+  if(f.ty==='ta')i=`<textarea${nm} rows=3>${esc(v)}</textarea>`;
+  else if(f.ty==='s')i=`<select${nm}><option value="">—</option>${f.v.map(o=>`<option${o===v?' selected':''}>${o}</option>`).join('')}</select>`;
+  else if(f.ty==='fk'){const t=f.v[0];i=`<select${nm}><option value="">—</option>${(D[t]||[]).map(o=>{const id=o[R[t].id];return`<option value=${id}${id==v?' selected':''}>${esc(lab(t,id))} (#${id})</option>`}).join('')}</select>`}
+  else{const T={t:'text',e:'email',p:'password',n:'number',d:'date',dt:'datetime-local',f:'file'}[f.ty];i=`<input type=${T}${nm}${f.ty==='n'?' step=any':''}${f.ty==='p'&&u?' placeholder="Leave blank to keep current"':''} value="${esc(f.ty==='d'?String(v).slice(0,10):f.ty==='dt'?String(v).slice(0,16):'pf'.includes(f.ty)?'':v)}">`}
+  return`<label>${f.n.replace(/_/g,' ')}${rq?' *':''}${i}</label>`}).join('')}<div class=ac2><button type=button class=btn onclick=cm()>Cancel</button><button class="btn pri">Save changes</button></div></form>`;openM();
+ $('#fm').onsubmit=async e=>{e.preventDefault();const fd=new FormData(e.target);let b;
+  if(r.mp&&!u)b=fd;else{b={};fs.forEach(f=>{const v=fd.get(f.n);if(v===''||v==null){if(u&&!f.fl.includes('r')&&!['n','p'].includes(f.ty))b[f.n]=null;return}b[f.n]=['n','fk'].includes(f.ty)?Number(v):v})}
+  const j=await call(u?'PUT':'POST',u?U.u(r,row[r.id]):U.a(r),b);
+  if(j.success){toast(j.message);cm();await loadAll();nav();if(ST.k===k)draw()}else toast(`${j.message}${j.errors?' '+JSON.stringify(j.errors):''} (HTTP ${j._s})`,1)}}
+// ---------- AI tools ----------
+function ai(){const jo=(D.jobs||[]).map(j=>`<option value=${j.job_id}>${esc(j.job_title)}</option>`).join(''),ro=(D.resumes||[]).map(x=>`<option value=${x.resume_id}>${esc(x.file_name)} (#${x.resume_id})</option>`).join('');
+ $('#view').innerHTML=`<div class="gr g2"><div class=card><h3>Generate interview question</h3><form id=gq class=fm><label>Prefill from job<select id=gj><option value="">—</option>${jo}</select></label><label>Job title<input name=job_title required></label><label>Job description<textarea name=job_description rows=3 required></textarea></label><label>Required experience<input name=required_experience required></label><label>Skills<input name=skills required></label><label>Question type<select name=question_type>${['Scenario','Technical','Behavioral','Situational','HR'].map(x=>`<option>${x}</option>`).join('')}</select></label><button class="btn pri">Generate question</button></form><pre class=js id=gqo hidden></pre></div>
+ <div class=card><h3>Parse CV</h3><form id=pc class=fm><label>Upload PDF or DOCX<input type=file name=file accept=".pdf,.docx" required></label><button class="btn pri">Parse file</button></form><hr><form id=pr class=fm><label>Or parse a saved resume<select id=prs><option value="">—</option>${ro}</select></label><button class=btn>Parse saved resume</button></form><pre class=js id=pco hidden></pre></div></div>`;
+ const out=(id,j)=>{const o=$(id);o.hidden=false;o.textContent=JSON.stringify(j,null,2)};
+ $('#gj').onchange=e=>{const j=D.jobs.find(x=>x.job_id==e.target.value),f=$('#gq');if(!j)return;f.job_title.value=j.job_title;f.job_description.value=j.job_description;f.required_experience.value=j.required_exp+' years';f.skills.value=(D.jskills||[]).filter(s=>s.job_id==j.job_id).map(s=>s.skill_name).join(', ')};
+ $('#gq').onsubmit=async e=>{e.preventDefault();out('#gqo',{status:'Generating…'});out('#gqo',await call('POST','/ai/generate-question/',Object.fromEntries(new FormData(e.target))))};
+ $('#pc').onsubmit=async e=>{e.preventDefault();out('#pco',{status:'Parsing…'});out('#pco',await call('POST','/ai/parse-cv/',new FormData(e.target)))};
+ $('#pr').onsubmit=async e=>{e.preventDefault();const r=(D.resumes||[]).find(x=>x.resume_id==$('#prs').value);if(!r)return toast('Select a resume first',1);out('#pco',{status:'Parsing…'});
+  try{const f=await fetch(new URL(API).origin+r.file_path);if(!f.ok)throw Error('File not found (HTTP '+f.status+')');const fd=new FormData();fd.append('file',await f.blob(),r.file_name);out('#pco',await call('POST','/ai/parse-cv/',fd))}catch(err){out('#pco',{success:false,message:err.message})}}}
+// ---------- API explorer ----------
+function apix(){const ps=[...new Set(Object.values(R).flatMap(r=>[U.l(r),U.a(r),U.o(r,1),U.u(r,1),U.d(r,1)]).concat(['/auth/me/','/auth/login/','/auth/logout/','/auth/register/','/ai/generate-question/','/ai/parse-cv/','/ai/parse-cv/1/']))];
+ $('#view').innerHTML=`<datalist id=pl>${ps.map(p=>`<option value="${p}">`).join('')}</datalist><form id=ax class=fm><div class=bar><select id=am style="width:110px">${['GET','POST','PUT','PATCH','DELETE'].map(m=>`<option>${m}</option>`).join('')}</select><input id=ap list=pl value="/users/" style="flex:1;max-width:none"><button class="btn pri">Send request</button></div><label>JSON body (POST, PUT, PATCH)<textarea id=ab rows=6 placeholder='{"skill_name":"Python"}'></textarea></label></form><div id=ao style="margin-top:12px"></div>`;
+ $('#ax').onsubmit=async e=>{e.preventDefault();let b;const t=$('#ab').value.trim(),m=$('#am').value;if(t)try{b=JSON.parse(t)}catch(_){return toast('Body is not valid JSON',1)}
+  const j=await call(m,$('#ap').value,m==='GET'||m==='DELETE'?undefined:b),s=j._s;delete j._s;
+  $('#ao').innerHTML=`<div class=card><span class="bd ${s>=200&&s<300?'ok':'bad'}">HTTP ${s}</span><pre class=js>${esc(JSON.stringify(j,null,2))}</pre></div>`}}
+// ---------- events ----------
+$('#view').addEventListener('click',async e=>{const b=e.target.closest('[data-a],[data-p],th[data-c]');if(!b)return;const d=b.dataset,k=ST.k;
+ if(d.c){ST.d=ST.s===d.c?-ST.d:1;ST.s=d.c;draw()}
+ else if(d.p){ST.p=Math.max(1,ST.p+ +d.p);draw()}
+ else if(d.a==='n')form(k);else if(d.a==='x')csv();else if(d.a==='v')viewRow(k,d.i);
+ else if(d.a==='e')form(k,D[k].find(x=>x[R[k].id]==d.i));
+ else if(d.a==='d'&&confirm(`Delete ${R[k].t} #${d.i}? Related records may be deleted too.`)){const j=await call('DELETE',U.d(R[k],d.i));toast(j.message,!j.success);await loadAll();nav();draw()}});
+$('#view').addEventListener('input',e=>{if(e.target.id==='q'){ST.q=e.target.value.toLowerCase();ST.p=1;draw()}});
+$('#view').addEventListener('change',e=>{if(e.target.id==='ps'){ST.n=+e.target.value;ST.p=1;draw()}});
+$('#mo').onclick=e=>{if(e.target.id==='mo')cm()};onkeydown=e=>{if(e.key==='Escape')cm()};
+$('#burger').onclick=()=>$('#side').classList.toggle('open');
+$('#rf').onclick=async()=>{await loadAll();route()};
+addEventListener('hashchange',route);
+// ---------- start ----------
+$('#api').value=API;
+$('#api').onchange=async e=>{API=e.target.value.replace(/\/$/,'');try{localStorage.setItem('api',API)}catch(_){}await loadAll();route()};
+(async()=>{$('#view').innerHTML='<span class=mut>Loading data…</span>';await loadAll();route()})();
 </script>
-
 </body>
 </html>
