@@ -10,7 +10,7 @@ import Link from "next/link";
 const API_BASE_URL = "http://localhost:8000";
 const ROLE_REDIRECTS = {
   hr: "/HR",
-  admin: "/Admin/Dashboard",
+  admin: "/Admin",
   candidate: "/",
 };
 
