@@ -165,3 +165,23 @@ def me(request):
     #     "is_active": user.is_active,
     #     "created_at": user.created_at,
     # }, message="Current user") 
+
+
+
+
+
+# def build_user_payload(user):
+#     data = {
+#         "user_id": user.user_id,
+#         "full_name": user.full_name,
+#         "email": user.email,
+#         "phone_no": user.phone_no,
+#         "role": user.role,
+#     }
+#     if user.role == "candidate":
+#         profile, _ = CandidateProfile.objects.get_or_create(user=user)
+#         data["candidate_id"] = profile.candidate_id
+#     elif user.role == "hr":
+#         profile, _ = HRProfile.objects.get_or_create(user=user)
+#         data["hr_id"] = profile.hr_id
+#     return data
