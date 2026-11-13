@@ -3,9 +3,736 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <title>CV Parser — Test UI</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #1a202c;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: #718096;
+      font-size: 0.95rem;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.75rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #2d3748;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 0.4rem;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 0.6rem 0.8rem;
+      border: 1px solid #cbd5e0;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      margin-bottom: 1rem;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #4299e1;
+      box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+    }
+
+    .file-drop {
+      border: 2px dashed #cbd5e0;
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #f7fafc;
+      margin-bottom: 1rem;
+    }
+
+    .file-drop:hover,
+    .file-drop.dragover {
+      border-color: #4299e1;
+      background: #ebf8ff;
+    }
+
+    .file-drop .icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .file-drop p {
+      font-size: 0.9rem;
+      color: #4a5568;
+    }
+
+    .file-drop .filename {
+      font-weight: 600;
+      color: #2b6cb0;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 0.65rem 1.4rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: #2b6cb0;
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #2c5282;
+    }
+
+    .btn-secondary {
+      background: #edf2f7;
+      color: #2d3748;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #e2e8f0;
+    }
+
+    .status {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    .status.info {
+      background: #ebf8ff;
+      color: #2b6cb0;
+      border: 1px solid #bee3f8;
+    }
+
+    .status.success {
+      background: #f0fff4;
+      color: #276749;
+      border: 1px solid #c6f6d5;
+    }
+
+    .status.error {
+      background: #fff5f5;
+      color: #c53030;
+      border: 1px solid #fed7d7;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    #outputSection {
+      display: none;
+    }
+
+    #outputSection.show {
+      display: block;
+    }
+
+    .output-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .meta-info {
+      font-size: 0.8rem;
+      color: #718096;
+      margin-bottom: 1rem;
+    }
+
+    .meta-info span {
+      margin-right: 1rem;
+    }
+
+    pre {
+      background: #1a202c;
+      color: #e2e8f0;
+      padding: 1.25rem;
+      border-radius: 10px;
+      overflow: auto;
+      max-height: 600px;
+      font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .summary-item {
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+
+    .summary-item .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #718096;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .summary-item .value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #2d3748;
+      word-break: break-word;
+    }
+
+    .tab-row {
+      display: flex;
+      gap: 0.25rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .tab {
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #718096;
+      cursor: pointer;
+      border: none;
+      background: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+
+    .tab.active {
+      color: #2b6cb0;
+      border-bottom-color: #2b6cb0;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .error-box {
+      background: #fff5f5;
+      border: 1px solid #fed7d7;
+      color: #c53030;
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    .warning-box {
+      background: #fffaf0;
+      border: 1px solid #feebc8;
+      color: #c05621;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-top: 0.75rem;
+    }
+  </style>
 </head>
 <body>
- done
+  <div class="container">
+    <header>
+      <h1>📄 CV Parser — Test Console</h1>
+      <p class="subtitle">
+        Upload a PDF or DOCX resume and see the structured JSON output from
+        <code>POST /api/ai/parse-cv/</code>
+      </p>
+    </header>
+
+    <!-- API Configuration -->
+    <div class="card">
+      <h2>⚙️ API Configuration</h2>
+      <label for="apiBase">Backend Base URL</label>
+      <input
+        type="text"
+        id="apiBase"
+        value="http://127.0.0.1:8000"
+        placeholder="http://127.0.0.1:8000"
+      />
+      <p style="font-size: 0.8rem; color: #718096;">
+        Full endpoint will be:
+        <code id="endpointPreview">http://127.0.0.1:8000/api/ai/parse-cv/</code>
+      </p>
+    </div>
+
+    <!-- Upload -->
+    <div class="card">
+      <h2>📤 Upload Resume</h2>
+
+      <label for="fileInput">Select a PDF or DOCX file</label>
+      <input
+        type="file"
+        id="fileInput"
+        accept=".pdf,.docx"
+        style="display: none;"
+      />
+
+      <div class="file-drop" id="fileDrop">
+        <div class="icon">📎</div>
+        <p>Drag &amp; drop your resume here, or click to browse</p>
+        <p style="font-size: 0.8rem; color: #a0aec0; margin-top: 0.25rem;">
+          Supported formats: .pdf, .docx
+        </p>
+        <div class="filename" id="fileName"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" id="parseBtn" disabled>
+          🚀 Parse CV
+        </button>
+        <button class="btn-secondary" id="clearBtn">
+          🗑️ Clear
+        </button>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <!-- Output -->
+    <div class="card" id="outputSection">
+      <div class="output-toolbar">
+        <h2 style="margin: 0;">📊 Parse Result</h2>
+        <div class="btn-row">
+          <button class="btn-secondary" id="copyJsonBtn">📋 Copy JSON</button>
+          <button class="btn-secondary" id="downloadJsonBtn">💾 Download</button>
+        </div>
+      </div>
+
+      <div class="meta-info" id="metaInfo"></div>
+
+      <div class="summary" id="summary"></div>
+
+      <div class="tab-row">
+        <button class="tab active" data-tab="json">Raw JSON</button>
+        <button class="tab" data-tab="warnings">Warnings &amp; Errors</button>
+      </div>
+
+      <div class="tab-content active" id="tab-json">
+        <pre id="jsonOutput"></pre>
+      </div>
+
+      <div class="tab-content" id="tab-warnings">
+        <div id="warningsContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // Element references
+    // ============================================================
+    const apiBaseInput = document.getElementById("apiBase");
+    const endpointPreview = document.getElementById("endpointPreview");
+    const fileInput = document.getElementById("fileInput");
+    const fileDrop = document.getElementById("fileDrop");
+    const fileName = document.getElementById("fileName");
+    const parseBtn = document.getElementById("parseBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const statusEl = document.getElementById("status");
+    const outputSection = document.getElementById("outputSection");
+    const metaInfo = document.getElementById("metaInfo");
+    const summaryEl = document.getElementById("summary");
+    const jsonOutput = document.getElementById("jsonOutput");
+    const warningsContent = document.getElementById("warningsContent");
+    const copyJsonBtn = document.getElementById("copyJsonBtn");
+    const downloadJsonBtn = document.getElementById("downloadJsonBtn");
+
+    let selectedFile = null;
+    let lastResult = null;
+
+    // ============================================================
+    // Endpoint preview updates
+    // ============================================================
+    function getEndpoint() {
+      const base = apiBaseInput.value.trim().replace(/\/+$/, "");
+      return `${base}/api/ai/parse-cv/`;
+    }
+
+    function updateEndpointPreview() {
+      endpointPreview.textContent = getEndpoint();
+    }
+
+    apiBaseInput.addEventListener("input", updateEndpointPreview);
+    updateEndpointPreview();
+
+    // ============================================================
+    // File selection
+    // ============================================================
+    fileDrop.addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        setSelectedFile(e.target.files[0]);
+      }
+    });
+
+    // Drag & drop
+    ["dragenter", "dragover"].forEach((evt) => {
+      fileDrop.addEventListener(evt, (e) => {
+        e.preventDefault();
+        fileDrop.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((evt) => {
+      fileDrop.addEventListener(evt, (e) => {
+        e.preventDefault();
+        fileDrop.classList.remove("dragover");
+      });
+    });
+
+    fileDrop.addEventListener("drop", (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        const file = files[0];
+        if (!isValidFile(file)) {
+          showStatus(
+            "error",
+            `Unsupported file type: ${file.name}. Only PDF and DOCX are allowed.`
+          );
+          return;
+        }
+        setSelectedFile(file);
+      }
+    });
+
+    function isValidFile(file) {
+      const ext = file.name.toLowerCase().split(".").pop();
+      return ext === "pdf" || ext === "docx";
+    }
+
+    function setSelectedFile(file) {
+      if (!isValidFile(file)) {
+        showStatus(
+          "error",
+          `Unsupported file type: ${file.name}. Only PDF and DOCX are allowed.`
+        );
+        return;
+      }
+      selectedFile = file;
+      fileName.textContent = `✅ ${file.name} (${formatBytes(file.size)})`;
+      parseBtn.disabled = false;
+      hideStatus();
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+    }
+
+    // ============================================================
+    // Status helpers
+    // ============================================================
+    function showStatus(type, message, isLoading = false) {
+      statusEl.className = `status show ${type}`;
+      statusEl.innerHTML = isLoading
+        ? `<span class="spinner"></span>${message}`
+        : message;
+    }
+
+    function hideStatus() {
+      statusEl.className = "status";
+      statusEl.innerHTML = "";
+    }
+
+    // ============================================================
+    // Parse action
+    // ============================================================
+    parseBtn.addEventListener("click", async () => {
+      if (!selectedFile) {
+        showStatus("error", "Please select a file first.");
+        return;
+      }
+
+      const endpoint = getEndpoint();
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      parseBtn.disabled = true;
+      showStatus("info", "Uploading and parsing…", true);
+      outputSection.classList.remove("show");
+
+      const startTime = performance.now();
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+          // Do NOT set Content-Type — browser sets multipart boundary
+        });
+
+        const elapsed = Math.round(performance.now() - startTime);
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          const msg =
+            (data && data.message) ||
+            `HTTP ${response.status} ${response.statusText}`;
+          showStatus("error", `❌ ${msg}`);
+          parseBtn.disabled = false;
+          return;
+        }
+
+        // Backend envelope: { success, message, data }
+        const payload = data && typeof data === "object" && "data" in data
+          ? data.data
+          : data;
+
+        lastResult = payload;
+
+        showStatus(
+          "success",
+          `✅ Parsed successfully in ${elapsed} ms`
+        );
+
+        renderResult(payload, endpoint, elapsed);
+        outputSection.classList.add("show");
+        outputSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (err) {
+        console.error(err);
+        showStatus(
+          "error",
+          `❌ Network error: ${err.message}. Is the backend running and CORS configured?`
+        );
+      } finally {
+        parseBtn.disabled = false;
+      }
+    });
+
+    // ============================================================
+    // Render result
+    // ============================================================
+    function renderResult(result, endpoint, elapsed) {
+      // Meta
+      const meta = result.metadata || {};
+      metaInfo.innerHTML = `
+        <span><strong>Endpoint:</strong> ${escapeHtml(endpoint)}</span>
+        <span><strong>File type:</strong> ${escapeHtml(meta.file_type || "—")}</span>
+        <span><strong>Pages:</strong> ${meta.page_count ?? "—"}</span>
+        <span><strong>Parser:</strong> v${escapeHtml(meta.parser_version || "—")}</span>
+        <span><strong>Time:</strong> ${elapsed} ms</span>
+        <span><strong>OCR:</strong> ${meta.ocr_used ? "Yes" : "No"}</span>
+      `;
+
+      // Summary cards
+      const pi = result.personal_information || {};
+      const skills = result.skills || {};
+      const edu = result.education || [];
+      const exp = result.experience || [];
+      const projects = result.projects || [];
+      const certs = result.certifications || [];
+
+      summaryEl.innerHTML = `
+        ${summaryCard("Name", pi.full_name || "—")}
+        ${summaryCard("Email", pi.emails?.[0] || "—")}
+        ${summaryCard("Phone", pi.phones?.[0] || "—")}
+        ${summaryCard("Skills", (skills.all_skills || []).length)}
+        ${summaryCard("Education", edu.length)}
+        ${summaryCard("Experience", exp.length)}
+        ${summaryCard("Projects", projects.length)}
+        ${summaryCard("Certifications", certs.length)}
+        ${summaryCard("Total Exp (yrs)", result.total_experience_years ?? "—")}
+      `;
+
+      // Raw JSON
+      jsonOutput.textContent = JSON.stringify(result, null, 2);
+
+      // Warnings & errors
+      const warnings = meta.warnings || [];
+      const errors = meta.errors || [];
+
+      let html = "";
+      if (errors.length) {
+        html += `<div class="error-box">
+          <strong>❌ Errors (${errors.length})</strong>
+          <ul style="margin: 0.5rem 0 0 1.2rem;">
+            ${errors.map((e) => `<li>${escapeHtml(e)}</li>`).join("")}
+          </ul>
+        </div>`;
+      }
+      if (warnings.length) {
+        html += `<div class="warning-box">
+          <strong>⚠️ Warnings (${warnings.length})</strong>
+          <ul style="margin: 0.5rem 0 0 1.2rem;">
+            ${warnings.map((w) => `<li>${escapeHtml(w)}</li>`).join("")}
+          </ul>
+        </div>`;
+      }
+      if (!html) {
+        html = `<p style="color: #38a169; font-weight: 600;">✅ No warnings or errors.</p>`;
+      }
+      warningsContent.innerHTML = html;
+    }
+
+    function summaryCard(label, value) {
+      return `<div class="summary-item">
+        <div class="label">${escapeHtml(label)}</div>
+        <div class="value">${escapeHtml(String(value))}</div>
+      </div>`;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    // ============================================================
+    // Tabs
+    // ============================================================
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(`tab-${tab.dataset.tab}`).classList.add("active");
+      });
+    });
+
+    // ============================================================
+    // Copy / Download
+    // ============================================================
+    copyJsonBtn.addEventListener("click", async () => {
+      if (!lastResult) return;
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(lastResult, null, 2));
+        const original = copyJsonBtn.textContent;
+        copyJsonBtn.textContent = "✅ Copied!";
+        setTimeout(() => (copyJsonBtn.textContent = original), 1500);
+      } catch (err) {
+        showStatus("error", "Clipboard copy failed: " + err.message);
+      }
+    });
+
+    downloadJsonBtn.addEventListener("click", () => {
+      if (!lastResult) return;
+      const blob = new Blob([JSON.stringify(lastResult, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const base = (selectedFile?.name || "parsed").replace(/\.[^.]+$/, "");
+      a.download = `${base}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // ============================================================
+    // Clear
+    // ============================================================
+    clearBtn.addEventListener("click", () => {
+      selectedFile = null;
+      lastResult = null;
+      fileInput.value = "";
+      fileName.textContent = "";
+      parseBtn.disabled = true;
+      hideStatus();
+      outputSection.classList.remove("show");
+      jsonOutput.textContent = "";
+      summaryEl.innerHTML = "";
+      metaInfo.innerHTML = "";
+      warningsContent.innerHTML = "";
+    });
+  </script>
 </body>
 </html>
