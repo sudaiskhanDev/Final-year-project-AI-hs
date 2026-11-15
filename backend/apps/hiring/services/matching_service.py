@@ -1,0 +1,3186 @@
+"""
+Matching Service — CV vs Job scoring.
+
+3 components:
+  1. Skills score       (weight 50%)  — with alias canonicalization
+  2. Experience score   (weight 30%)
+  3. Qualification score (weight 20%) — with alias canonicalization
+
+Total = weighted sum (0-100)
+
+Includes comprehensive A-Z aliases for:
+  - Skills (programming languages, frameworks, databases, cloud, ML, etc.)
+  - Degree levels (PhD, Masters, Bachelors, Diploma, Intermediate, Matric, etc.)
+  - Fields of study (CS, SE, EE, BBA, MBA, etc.)
+"""
+
+import os
+import re
+
+from django.conf import settings
+from django.utils import timezone
+
+from apps.recruitment.models import Application
+from apps.hiring.models import ResumeMatching
+from apps.ai_services.services.cv_parser import parse_cv
+
+
+# ============================================================
+# WEIGHTS (easily tunable)
+# ============================================================
+WEIGHTS = {
+    "skills": 0.50,
+    "experience": 0.30,
+    "qualification": 0.20,
+}
+
+
+# ============================================================
+# SKILL ALIASES — COMPREHENSIVE A-Z
+# canonical name : list of synonyms/abbreviations
+# ============================================================
+SKILL_ALIASES = {
+    # ---------------------------------------------------------
+    # PROGRAMMING LANGUAGES
+    # ---------------------------------------------------------
+    "python":       ["python", "python3", "py"],
+    "java":         ["java"],                           # NOT javascript
+    "javascript":   ["js", "javascript", "ecmascript", "java script", "es6"],
+    "typescript":   ["ts", "typescript", "type script"],
+    "c":            ["c"],                              # NOT c++/c#
+    "cpp":          ["c++", "cpp", "c plus plus", "c-plus-plus"],
+    "csharp":       ["c#", "csharp", "c sharp", "c-sharp", "c#.net"],
+    "php":          ["php", "php7", "php8"],
+    "ruby":         ["ruby", "ruby on rails", "rails"],
+    "swift":        ["swift", "swift ui", "swiftui"],
+    "kotlin":       ["kotlin"],
+    "scala":        ["scala"],
+    "rust":         ["rust", "rustlang"],
+    "golang":       ["go", "golang", "go lang"],
+    "r":            ["r", "r programming", "r language"],
+    "matlab":       ["matlab"],
+    "sql":          ["sql"],
+    "html":         ["html", "html5"],
+    "css":          ["css", "css3"],
+    "bash":         ["bash", "shell scripting", "shell script"],
+    "powershell":   ["powershell", "ps1"],
+    "dart":         ["dart"],
+    "perl":         ["perl"],
+    "lua":          ["lua"],
+    "haskell":      ["haskell"],
+    "elixir":       ["elixir"],
+    "clojure":      ["clojure"],
+    "julia":        ["julia"],
+    "assembly":     ["assembly", "asm", "x86 assembly"],
+
+    # ---------------------------------------------------------
+    # FRONTEND FRAMEWORKS & LIBRARIES
+    # ---------------------------------------------------------
+    "react":        ["react", "reactjs", "react.js", "react js"],
+    "nextjs":       ["next", "nextjs", "next.js", "next js"],
+    "vuejs":        ["vue", "vuejs", "vue.js", "vue js", "vue3"],
+    "angular":      ["angular", "angularjs", "angular.js"],
+    "svelte":       ["svelte", "sveltekit"],
+    "tailwind":     ["tailwind", "tailwindcss", "tailwind css"],
+    "bootstrap":    ["bootstrap", "bootstrap5"],
+    "jquery":       ["jquery"],
+    "redux":        ["redux", "redux toolkit", "rtk"],
+    "webpack":      ["webpack"],
+    "vite":         ["vite"],
+
+    # ---------------------------------------------------------
+    # BACKEND FRAMEWORKS
+    # ---------------------------------------------------------
+    "nodejs":       ["node", "nodejs", "node.js", "node js"],
+    "express":      ["express", "expressjs", "express.js"],
+    "nestjs":       ["nestjs", "nest.js", "nest js"],
+    "django":       ["django", "django rest framework", "drf"],
+    "flask":        ["flask"],
+    "fastapi":      ["fastapi", "fast api"],
+    "spring boot":  ["spring boot", "springboot", "spring-boot", "spring"],
+    "laravel":      ["laravel"],
+    "aspnet":       ["asp.net", "aspnet", "asp net", "asp.net core"],
+    "phoenix":      ["phoenix", "elixir phoenix"],
+
+    # ---------------------------------------------------------
+    # DATABASES
+    # ---------------------------------------------------------
+    "postgresql":   ["postgres", "postgresql", "psql", "postgre sql"],
+    "mysql":        ["mysql", "my sql"],
+    "mssql":        ["mssql", "sql server", "microsoft sql server", "ms sql"],
+    "mongodb":      ["mongo", "mongodb", "mongo db"],
+    "redis":        ["redis"],
+    "sqlite":       ["sqlite", "sqlite3"],
+    "oracle db":    ["oracle", "oracle db", "oracle database"],
+    "cassandra":    ["cassandra"],
+    "dynamodb":     ["dynamodb", "dynamo db"],
+    "elasticsearch": ["elasticsearch", "elastic search", "elastic"],
+    "neo4j":        ["neo4j", "neo 4j"],
+    "firebase":     ["firebase", "firestore"],
+    "supabase":     ["supabase"],
+
+    # ---------------------------------------------------------
+    # CLOUD PLATFORMS
+    # ---------------------------------------------------------
+    "aws":          ["aws", "amazon web services", "amazon aws"],
+    "gcp":          ["gcp", "google cloud", "google cloud platform"],
+    "azure":        ["azure", "microsoft azure"],
+    "digitalocean": ["digitalocean", "digital ocean"],
+    "heroku":       ["heroku"],
+    "vercel":       ["vercel"],
+    "netlify":      ["netlify"],
+
+    # ---------------------------------------------------------
+    # DEVOPS & INFRASTRUCTURE
+    # ---------------------------------------------------------
+    "docker":       ["docker", "containerization"],
+    "kubernetes":   ["k8s", "kubernetes", "kube"],
+    "terraform":    ["terraform"],
+    "ansible":      ["ansible"],
+    "jenkins":      ["jenkins"],
+    "github actions": ["github actions", "gha"],
+    "gitlab ci":    ["gitlab ci", "gitlab-ci"],
+    "circleci":     ["circleci", "circle ci"],
+    "cicd":         ["ci/cd", "cicd", "ci-cd", "continuous integration",
+                     "continuous deployment"],
+
+    # ---------------------------------------------------------
+    # AI / ML / DATA SCIENCE
+    # ---------------------------------------------------------
+    "machine learning":       ["ml", "machine learning", "machine-learning"],
+    "deep learning":          ["dl", "deep learning", "deep-learning"],
+    "artificial intelligence": ["ai", "artificial intelligence"],
+    "nlp":                    ["nlp", "natural language processing"],
+    "computer vision":        ["cv", "computer vision"],
+    "reinforcement learning": ["rl", "reinforcement learning"],
+    "tensorflow":             ["tensorflow", "tf"],
+    "pytorch":                ["pytorch", "torch"],
+    "keras":                  ["keras"],
+    "scikit-learn":           ["sklearn", "scikit-learn", "scikit learn"],
+    "pandas":                 ["pandas"],
+    "numpy":                  ["numpy"],
+    "matplotlib":             ["matplotlib"],
+    "seaborn":                ["seaborn"],
+    "opencv":                 ["opencv", "open cv"],
+    "hugging face":           ["hugging face", "huggingface", "hf"],
+    "llm":                    ["llm", "large language model",
+                               "large language models"],
+    "rag":                    ["rag", "retrieval augmented generation",
+                               "retrieval-augmented generation"],
+    "langchain":              ["langchain", "lang chain"],
+    "llamaindex":             ["llamaindex", "llama index"],
+    "prompt engineering":     ["prompt engineering", "prompting"],
+    "generative ai":          ["generative ai", "gen ai", "genai"],
+    "agentic ai":             ["agentic ai", "ai agents"],
+
+    # ---------------------------------------------------------
+    # DATA & ANALYTICS
+    # ---------------------------------------------------------
+    "power bi":     ["power bi", "powerbi"],
+    "tableau":      ["tableau"],
+    "looker":       ["looker", "looker studio"],
+    "excel":        ["excel", "ms excel", "microsoft excel"],
+    "etl":          ["etl", "extract transform load"],
+    "spark":        ["spark", "apache spark", "pyspark"],
+    "hadoop":       ["hadoop"],
+    "kafka":        ["kafka", "apache kafka"],
+    "airflow":      ["airflow", "apache airflow"],
+
+    # ---------------------------------------------------------
+    # APIs & PROTOCOLS
+    # ---------------------------------------------------------
+    "rest api":     ["rest", "rest api", "restapi", "restful", "rest apis"],
+    "graphql":      ["graphql"],
+    "grpc":         ["grpc"],
+    "websocket":    ["websocket", "web socket", "ws"],
+    "soap":         ["soap"],
+    "oauth":        ["oauth", "oauth2"],
+    "jwt":          ["jwt", "json web token"],
+
+    # ---------------------------------------------------------
+    # MOBILE DEVELOPMENT
+    # ---------------------------------------------------------
+    "react native": ["react native", "rn"],
+    "flutter":      ["flutter", "flutter dart"],
+    "xamarin":      ["xamarin"],
+    "ionic":        ["ionic"],
+    "android":      ["android", "android dev"],
+    "ios":          ["ios", "ios dev"],
+
+    # ---------------------------------------------------------
+    # TESTING
+    # ---------------------------------------------------------
+    "jest":         ["jest"],
+    "pytest":       ["pytest", "py.test"],
+    "mocha":        ["mocha"],
+    "jasmine":      ["jasmine"],
+    "cypress":      ["cypress"],
+    "selenium":     ["selenium"],
+    "playwright":   ["playwright"],
+    "unit testing": ["unit testing", "unit test"],
+    "integration testing": ["integration testing", "integration test"],
+
+    # ---------------------------------------------------------
+    # VERSION CONTROL & TOOLS
+    # ---------------------------------------------------------
+    "git":          ["git"],
+    "github":       ["github"],
+    "gitlab":       ["gitlab"],
+    "bitbucket":    ["bitbucket"],
+    "jira":         ["jira"],
+    "confluence":   ["confluence"],
+    "slack":        ["slack"],
+    "figma":        ["figma"],
+    "postman":      ["postman"],
+    "vscode":       ["vscode", "vs code", "visual studio code"],
+    "intellij":     ["intellij", "intellij idea"],
+
+    # ---------------------------------------------------------
+    # SECURITY
+    # ---------------------------------------------------------
+    "penetration testing": ["penetration testing", "pen testing", "pentest"],
+    "owasp":        ["owasp", "owasp top 10"],
+    "ssl tls":      ["ssl", "tls", "ssl/tls"],
+    "cryptography": ["cryptography", "encryption"],
+    "cybersecurity": ["cybersecurity", "cyber security", "cyber-security",
+                      "infosec", "information security"],
+
+    # ---------------------------------------------------------
+    # METHODOLOGIES
+    # ---------------------------------------------------------
+    "agile":        ["agile", "agile methodology"],
+    "scrum":        ["scrum"],
+    "kanban":       ["kanban"],
+    "devops":       ["devops"],
+    "tdd":          ["tdd", "test driven development",
+                     "test-driven development"],
+    "microservices": ["microservices", "micro services", "micro-services"],
+    "monolithic":   ["monolithic", "monolith"],
+
+    # ---------------------------------------------------------
+    # SOFT SKILLS
+    # ---------------------------------------------------------
+    "communication": ["communication", "communication skills"],
+    "leadership":   ["leadership", "team leadership"],
+    "teamwork":     ["teamwork", "team work", "team player"],
+    "problem solving": ["problem solving", "problem-solving"],
+    "critical thinking": ["critical thinking"],
+    "time management": ["time management"],
+    "adaptability": ["adaptability", "adaptable"],
+    "collaboration": ["collaboration"],
+    "presentation": ["presentation", "presentation skills"],
+}
+
+
+# Build reverse lookup: alias → canonical
+_SKILL_ALIAS_MAP = {}
+for _canonical, _aliases in SKILL_ALIASES.items():
+    for _alias in _aliases:
+        _SKILL_ALIAS_MAP[_alias.lower().strip()] = _canonical
+
+
+# ============================================================
+# DEGREE LEVELS — COMPREHENSIVE A-Z
+# ============================================================
+DEGREE_LEVELS = {
+    # ---------------------------------------------------------
+    # POST-DOCTORATE
+    # ---------------------------------------------------------
+    "postdoc": [
+        "postdoc", "post-doc", "post doc", "postdoctoral", "post-doctoral",
+        "post doctoral", "postdoctorate", "post doctorate",
+        "postdoctoral fellow", "postdoctoral fellowship",
+    ],
+
+    # ---------------------------------------------------------
+    # DOCTORATE / PHD
+    # ---------------------------------------------------------
+    "phd": [
+        "phd", "ph.d", "ph.d.", "ph d", "ph-d",
+        "doctorate", "doctoral", "doctorate degree", "doctoral degree",
+        "doctor of philosophy", "doctorate in philosophy",
+        "dphil", "d.phil", "d phil",
+        "dsc", "d.sc", "d sc", "scd", "sc.d",
+        "doctor of science",
+        "edd", "ed.d", "doctor of education",
+        "psyd", "psy.d", "doctor of psychology",
+        "dba", "d.b.a", "doctor of business administration",
+        "doctor of engineering", "doctor of technology",
+    ],
+
+    # ---------------------------------------------------------
+    # MPHIL / RESEARCH MASTERS
+    # ---------------------------------------------------------
+    "mphil": [
+        "mphil", "m.phil", "m.phil.", "m phil", "m-phil",
+        "master of philosophy", "masters of philosophy",
+        "master in philosophy",
+        "mres", "m.res", "master of research",
+        "research masters", "research master's",
+        "mlitt", "m.litt", "master of letters",
+    ],
+
+    # ---------------------------------------------------------
+    # MASTERS
+    # ---------------------------------------------------------
+    "masters": [
+        # generic
+        "master", "masters", "master's", "masters degree", "master degree",
+        "master's degree", "post graduate", "postgraduate", "post-graduate",
+        "pg", "p.g", "p.g.",
+        # abbreviations
+        "ms", "m.s", "m.s.", "msc", "m.sc", "m.sc.", "m sc",
+        "ma", "m.a", "m.a.", "m a",
+        "mba", "m.b.a", "m.b.a.", "emba", "executive mba",
+        "mtech", "m.tech", "m.tech.",
+        "meng", "m.eng", "m.eng.",
+        "mcs", "m.c.s", "mscs", "ms cs",
+        "mca", "m.c.a",
+        "mcom", "m.com", "m.com.", "m com",
+        "mpa", "m.p.a", "mph", "m.p.h", "mpp", "m.p.p",
+        "mfa", "m.f.a", "m.ed", "m.ed.", "msw", "m.s.w",
+        "march", "m.arch", "m.arch.", "mdes", "m.des",
+        "mpharm", "m.pharm", "m.pharm.",
+        "llm", "ll.m", "ll.m.", "ll m",
+        "mphys", "m.phys", "mchem", "m.chem",
+        # spelled out
+        "master of science", "master of arts",
+        "master of business administration",
+        "master of engineering", "master of technology",
+        "master of computer science", "master of computer applications",
+        "master of information technology",
+        "master of software engineering",
+        "master of data science", "master of artificial intelligence",
+        "master of public health", "master of public administration",
+        "master of education", "master of fine arts",
+        "master of commerce", "master of laws",
+        "master of architecture", "master of pharmacy",
+    ],
+
+    # ---------------------------------------------------------
+    # POSTGRADUATE DIPLOMA / CERTIFICATE
+    # ---------------------------------------------------------
+    "pg_diploma": [
+        "pg diploma", "pg-diploma", "pg dip", "pgd",
+        "postgraduate diploma", "post graduate diploma",
+        "post-graduate diploma", "graduate diploma",
+        "pgdm", "pgdba", "pgdca",
+        "pgce", "postgraduate certificate in education",
+        "pgcert", "pg cert", "postgraduate certificate",
+    ],
+
+    # ---------------------------------------------------------
+    # BACHELORS
+    # ---------------------------------------------------------
+    "bachelors": [
+        # generic
+        "bachelor", "bachelors", "bachelor's", "bachelor degree",
+        "bachelors degree", "bachelor's degree",
+        "undergraduate", "under graduate", "undergrad",
+        "ug", "u.g", "u.g.",
+        "graduation", "first degree",
+        # abbreviations
+        "bs", "b.s", "b.s.", "b s",
+        "bsc", "b.sc", "b.sc.", "b sc",
+        "ba", "b.a", "b.a.", "b a",
+        "bba", "b.b.a", "b.b.a.",
+        "btech", "b.tech", "b.tech.",
+        "be", "b.e", "b.e.",
+        "beng", "b.eng", "b.eng.",
+        "bcs", "b.c.s", "b.c.s.", "bscs", "bs cs", "bs(cs)",
+        "bcom", "b.com", "b.com.", "b com",
+        "bca", "b.c.a",
+        "bms", "b.m.s", "bbs", "b.b.s",
+        "bed", "b.ed", "b.ed.",
+        "bfa", "b.f.a",
+        "bdes", "b.des",
+        "barch", "b.arch", "b.arch.",
+        "bpharm", "b.pharm", "b.pharm.",
+        "llb", "ll.b", "ll.b.", "ll b",
+        "mbbs", "m.b.b.s", "mb bs", "bachelor of medicine",
+        "bds", "b.d.s", "bachelor of dental surgery",
+        "dpt", "d.p.t", "bpt", "b.p.t",
+        "dvm", "d.v.m", "bvsc", "b.v.sc",
+        "bsn", "b.s.n", "bsc nursing",
+        "bsw", "b.s.w",
+        # spelled out
+        "bachelor of science", "bachelor of arts",
+        "bachelor of business administration",
+        "bachelor of engineering", "bachelor of technology",
+        "bachelor of computer science",
+        "bachelor of computer applications",
+        "bachelor of information technology",
+        "bachelor of software engineering",
+        "bachelor of commerce",
+        "bachelor of laws",
+        "bachelor of architecture",
+        "bachelor of pharmacy",
+    ],
+
+    # ---------------------------------------------------------
+    # DIPLOMA / ASSOCIATE
+    # ---------------------------------------------------------
+    "diploma": [
+        "diploma", "diplomas", "advanced diploma", "higher diploma",
+        "professional diploma", "technical diploma", "vocational diploma",
+        "polytechnic diploma", "polytechnic",
+        "associate", "associate's", "associates", "associate degree",
+        "associates degree", "associate's degree",
+        "associate of science", "associate of arts",
+        "associate of applied science",
+        "a.a", "a.a.", "a.s", "a.s.", "a.a.s", "aas",
+        "dae", "d.a.e", "diploma of associate engineer",
+        "dit", "d.i.t", "diploma in information technology",
+        "dcs", "d.c.s", "diploma in computer science",
+        "dca", "d.c.a", "diploma in computer applications",
+        "hnd", "h.n.d", "higher national diploma",
+        "hnc", "h.n.c", "higher national certificate",
+        "btec", "b.tec", "btec national",
+        "foundation degree", "fdsc", "fd sc",
+    ],
+
+    # ---------------------------------------------------------
+    # INTERMEDIATE / HIGHER SECONDARY / A-LEVEL
+    # ---------------------------------------------------------
+    "intermediate": [
+        "intermediate", "inter", "inter.",
+        "intermediate certificate", "intermediate level",
+        "hsc", "h.s.c", "h.s.c.", "hssc", "h.s.s.c",
+        "higher secondary", "higher secondary school",
+        "higher secondary certificate", "higher secondary education",
+        "senior secondary", "senior secondary school",
+        "senior secondary certificate",
+        "post matric", "post-matric", "post matriculation",
+        "pre university", "pre-university", "puc",
+        "plus two", "10+2", "10 + 2",
+        "12th", "12th grade", "12th class", "12th standard",
+        "class 12", "class xii", "class 12th",
+        "grade 12", "grade xii", "xii", "twelfth",
+        "twelfth grade", "twelfth class", "std 12", "standard 12",
+        "year 12",
+        "fsc", "f.sc", "f.sc.", "f sc",
+        "fa", "f.a", "f.a.", "f a",
+        "ics", "i.c.s", "i.c.s.", "i c s",
+        "icom", "i.com", "i.com.", "i com",
+        "isc", "i.sc", "i.sc.", "i sc",
+        "a-level", "a level", "a levels", "a-levels", "alevel", "alevels",
+        "as level", "as-level", "as levels", "as-levels",
+        "gce a level", "gce a-level", "gce a levels",
+        "gce advanced level", "advanced level", "advanced levels",
+        "cambridge a level", "cambridge a-level",
+        "edexcel a level", "edexcel a-level",
+        "international a level",
+        "ibdp", "ib diploma", "ib diploma programme",
+        "international baccalaureate",
+        "high school diploma", "high school graduation",
+        "us high school diploma",
+        "american high school diploma", "hs diploma",
+        "senior high school", "ged", "g.e.d",
+        "general educational development",
+    ],
+
+    # ---------------------------------------------------------
+    # MATRIC / SECONDARY / O-LEVEL
+    # ---------------------------------------------------------
+    "matric": [
+        "matric", "matrik", "matriculation", "matriculate",
+        "matriculation certificate", "matriculation exam",
+        "matric certificate", "matric exam", "matric examination",
+        "matric part 1", "matric part 2",
+        "matric science", "matric arts",
+        "matric computer science", "matric general",
+        "ssc", "s.s.c", "s.s.c.", "s s c",
+        "ssc part 1", "ssc part i",
+        "secondary school", "secondary school certificate",
+        "secondary school certificate examination",
+        "secondary school examination", "secondary school exam",
+        "secondary", "secondary education", "secondary level",
+        "secondary certificate",
+        "lower secondary", "upper secondary",
+        "sslc", "s.s.l.c", "secondary school leaving certificate",
+        "school leaving certificate", "slc", "s.l.c",
+        "10th", "10th class", "10th grade", "10th standard",
+        "tenth", "tenth class", "tenth grade",
+        "class 10", "class x", "class 10th",
+        "grade 10", "grade x", "std 10", "standard 10",
+        "year 10",
+        "o-level", "o level", "o levels", "o-levels", "olevel", "olevels",
+        "gce o level", "gce o-level", "gce o levels",
+        "gce ordinary level", "gce ordinary levels",
+        "ordinary level", "ordinary levels",
+        "cambridge o level", "cambridge o-level", "cambridge o levels",
+        "cambridge ordinary level",
+        "igcse", "i.g.c.s.e", "ig cse", "international gcse",
+        "cambridge igcse", "edexcel igcse",
+        "gcse", "g.c.s.e", "gcses",
+        "general certificate of secondary education",
+        "general certificate of education ordinary level",
+        "high school", "highschool", "high-school",
+        "high school certificate",
+    ],
+
+    # ---------------------------------------------------------
+    # CERTIFICATE / SHORT COURSE (rank lower than matric)
+    # ---------------------------------------------------------
+    "certificate": [
+        "certificate", "certificates", "certification", "certifications",
+        "certificate course", "certificate program",
+        "professional certificate", "professional certification",
+        "vocational certificate", "vocational training",
+        "technical certificate", "technical training",
+        "trade certificate", "skill certificate",
+        "short course", "short courses",
+        "online course", "online certificate", "online certification",
+        "bootcamp", "boot camp", "coding bootcamp",
+        "nanodegree", "nano degree",
+        "micro-credential", "microcredential",
+        "navttc", "navttc certificate",
+        "city and guilds", "city & guilds",
+    ],
+}
+
+
+# Numeric hierarchy for degree comparison (higher = better)
+DEGREE_RANK = {
+    "postdoc": 7,
+    "phd": 6,
+    "mphil": 5,
+    "masters": 5,
+    "pg_diploma": 4.5,
+    "bachelors": 4,
+    "diploma": 3,
+    "intermediate": 2,
+    "certificate": 1.5,
+    "matric": 1,
+}
+
+
+# ============================================================
+# FIELD OF STUDY ALIASES — COMPREHENSIVE A-Z
+# ============================================================
+FIELD_OF_STUDY_ALIASES = {
+    # ---------------------------------------------------------
+    # COMPUTING
+    # ---------------------------------------------------------
+    "computer science": [
+        "computer science", "cs", "compsci", "comp sci", "comp. sci.",
+        "computer sciences", "computing", "computer studies",
+        "computer science and engineering", "cse",
+        "computer science and information technology", "csit",
+        "bscs", "bs cs", "mscs", "ms cs",
+    ],
+    "software engineering": [
+        "software engineering", "se", "software eng", "software engg",
+        "software development", "swe", "software systems",
+        "software technology", "software design",
+        "bsse", "bs se", "msse", "ms se",
+        "web development", "web engineering", "web technologies",
+        "mobile app development", "application development",
+    ],
+    "information technology": [
+        "information technology", "it", "info tech",
+        "information technologies", "infotech",
+        "bsit", "bs it", "msit", "ms it",
+        "information and communication technology", "ict",
+        "applied information technology", "information science",
+        "information studies", "computer technology",
+    ],
+    "information systems": [
+        "information systems", "is", "mis",
+        "management information systems", "information system",
+        "computer information systems", "cis",
+        "business information systems", "bis",
+        "information management", "enterprise systems",
+        "bsis", "bs is",
+    ],
+    "data science": [
+        "data science", "data sciences", "ds",
+        "data analytics", "data analysis", "big data",
+        "data engineering", "data mining",
+        "data science and analytics", "applied data science",
+        "business analytics", "business intelligence",
+        "analytics", "predictive analytics",
+        "bsds", "bs ds", "msds", "ms ds",
+        "quantitative analytics", "data management",
+        "database systems", "database management",
+    ],
+    "artificial intelligence": [
+        "artificial intelligence", "ai", "a.i",
+        "machine learning", "ml", "deep learning",
+        "ai and machine learning", "ai/ml", "aiml",
+        "robotics and ai", "robotics and artificial intelligence",
+        "computational intelligence", "intelligent systems",
+        "neural networks", "natural language processing", "nlp",
+        "computer vision", "image processing", "pattern recognition",
+        "bsai", "bs ai", "msai", "ms ai",
+        "ai engineering", "artificial intelligence engineering",
+        "generative ai",
+    ],
+    "cyber security": [
+        "cyber security", "cybersecurity", "cyber-security",
+        "cyber sec", "cybersec", "cyber defense",
+        "information security", "info security", "infosec",
+        "information assurance", "network security",
+        "computer security", "security engineering",
+        "applied cyber security", "digital forensics",
+        "cyber forensics", "computer forensics",
+        "forensic computing", "ethical hacking",
+        "penetration testing", "cryptography",
+    ],
+    "computer engineering": [
+        "computer engineering", "comp eng", "computer engg",
+        "coe", "cpe", "computer systems engineering",
+        "computer hardware engineering", "computer hardware",
+        "computer architecture", "embedded systems",
+        "embedded systems engineering", "digital systems",
+        "electrical and computer engineering",
+        "computer engineering technology",
+    ],
+    "computer networks": [
+        "computer networks", "computer network", "computer networking",
+        "networking", "networks", "network engineering",
+        "network administration", "networks and security",
+        "networking and security", "data communications",
+        "data communications and networking",
+        "computer communication", "computer communications",
+        "network systems", "network infrastructure",
+        "wireless networks", "distributed systems",
+        "cloud computing", "cloud engineering",
+        "cloud technologies", "devops",
+        "systems administration", "system administration",
+    ],
+    "game development": [
+        "game development", "game dev", "game design",
+        "games design", "game design and development",
+        "games development", "game programming",
+        "games programming", "game technology", "gaming",
+        "video game design", "video games", "game art",
+        "game art and design", "game engineering",
+        "animation and game design", "animation and games",
+        "multimedia and game development",
+        "interactive media", "interactive design",
+        "virtual reality", "augmented reality", "ar/vr", "vr/ar",
+        "extended reality", "xr",
+    ],
+    "bioinformatics": [
+        "bioinformatics", "bio-informatics", "bio informatics",
+        "computational biology", "computational biosciences",
+        "biocomputing", "bio computing",
+        "systems biology", "genomics",
+        "computational genomics", "proteomics",
+        "biomedical informatics", "health informatics",
+        "medical informatics", "healthcare informatics",
+        "clinical informatics",
+    ],
+
+    # ---------------------------------------------------------
+    # ENGINEERING
+    # ---------------------------------------------------------
+    "electrical engineering": [
+        "electrical engineering", "ee", "electrical eng",
+        "electrical engg", "electrical technology",
+        "electrical and electronics engineering", "eee",
+        "power engineering", "power systems",
+        "power system engineering", "electrical power engineering",
+        "power electronics", "electrical machines",
+        "high voltage engineering", "energy and power engineering",
+    ],
+    "electronics engineering": [
+        "electronics engineering", "electronic engineering",
+        "electronics", "electronics eng", "electronic eng",
+        "electronics technology", "electronic technology",
+        "electronics and communication", "ece",
+        "electronics and telecommunication", "entc",
+        "electronics and instrumentation",
+        "microelectronics", "nanoelectronics", "optoelectronics",
+    ],
+    "telecommunication engineering": [
+        "telecommunication engineering",
+        "telecommunications engineering",
+        "telecommunication", "telecommunications",
+        "telecom", "telecom engineering",
+        "telecommunication systems", "telecom technology",
+        "communication engineering", "communications engineering",
+        "communication systems", "communication systems engineering",
+        "wireless engineering", "wireless communication engineering",
+        "mobile communications", "mobile communication",
+        "satellite communications", "rf engineering",
+        "microwave engineering", "digital communications",
+        "signal processing", "digital signal processing", "dsp",
+    ],
+    "mechanical engineering": [
+        "mechanical engineering", "me", "mechanical eng",
+        "mechanical engg", "mech eng", "mech engg",
+        "mechanical", "mechanical technology",
+        "mechanical engineering technology", "mechanical systems",
+        "mechanical design", "machine design",
+        "thermal engineering", "thermal sciences",
+        "thermodynamics", "thermofluids", "fluid mechanics",
+        "fluid dynamics", "heat transfer", "hvac",
+        "refrigeration and air conditioning",
+        "refrigeration", "heating ventilation and air conditioning",
+        "applied mechanics", "solid mechanics",
+        "engineering mechanics", "vibrations",
+    ],
+    "civil engineering": [
+        "civil engineering", "ce", "civil eng", "civil engg",
+        "civil", "civil technology",
+        "civil engineering technology",
+        "civil and structural engineering",
+        "civil and environmental engineering",
+        "structural engineering", "structural eng",
+        "structures", "structural design", "structural analysis",
+        "construction engineering",
+        "construction engineering and management",
+        "construction management", "construction technology",
+        "construction project management",
+        "building engineering", "building construction",
+        "building technology", "geotechnical engineering",
+        "geotechnical", "geotechnics", "soil mechanics",
+        "foundation engineering", "transportation engineering",
+        "transport engineering", "highway engineering",
+        "traffic engineering", "water resources engineering",
+        "water resources", "hydraulic engineering", "hydraulics",
+        "irrigation engineering", "hydrology",
+        "coastal engineering",
+        "public health engineering", "sanitary engineering",
+        "quantity surveying",
+    ],
+    "chemical engineering": [
+        "chemical engineering", "chemical eng", "chemical engg",
+        "chem eng", "chem engg", "chemical",
+        "chemical technology",
+        "chemical engineering technology",
+        "process engineering", "process systems engineering",
+        "chemical process engineering",
+        "chemical and process engineering",
+        "chemical and materials engineering",
+        "chemical and biological engineering",
+        "bioprocess engineering", "bio process engineering",
+        "industrial chemical engineering", "polymer engineering",
+        "polymer science and engineering", "polymer technology",
+        "petrochemical engineering", "petrochemicals",
+        "petrochemical technology", "fuel engineering",
+    ],
+    "petroleum engineering": [
+        "petroleum engineering", "petroleum eng", "petroleum engg",
+        "petroleum", "petroleum and gas engineering",
+        "petroleum and natural gas engineering",
+        "petroleum technology", "petroleum geology",
+        "petroleum geosciences", "oil and gas engineering",
+        "oil and gas", "oil and gas technology",
+        "natural gas engineering", "gas engineering",
+        "drilling engineering", "reservoir engineering",
+        "petroleum production engineering",
+        "upstream engineering", "hydrocarbon engineering",
+        "energy resources engineering",
+    ],
+    "mining engineering": [
+        "mining engineering", "mining eng", "mining engg",
+        "mining", "mining and mineral engineering",
+        "mining technology", "mine engineering",
+        "mineral engineering", "mineral processing",
+        "mineral resources engineering", "mineral technology",
+        "mineral exploration", "mine surveying",
+        "mining and geology", "mining geology",
+    ],
+    "aerospace engineering": [
+        "aerospace engineering", "aerospace eng", "aerospace engg",
+        "aerospace", "aeronautical engineering",
+        "aeronautical eng", "aeronautics",
+        "aeronautics and astronautics",
+        "aeronautical", "aviation engineering",
+        "aviation", "aviation management",
+        "aviation technology", "aviation science",
+        "aircraft maintenance engineering", "aircraft engineering",
+        "aircraft maintenance", "aircraft design",
+        "avionics", "avionics engineering",
+        "astronautical engineering", "astronautics",
+        "space engineering", "space systems engineering",
+        "space technology", "space sciences",
+        "propulsion", "propulsion engineering",
+        "aerodynamics", "flight dynamics", "flight mechanics",
+        "flight engineering", "missile engineering",
+        "rocket engineering", "rocketry",
+        "uav engineering", "drone technology",
+    ],
+    "biomedical engineering": [
+        "biomedical engineering", "biomedical eng", "biomedical engg",
+        "bio-medical engineering", "bio medical engineering",
+        "biomedical", "bme", "biomedical technology",
+        "biomedical instrumentation", "medical instrumentation",
+        "medical electronics", "medical engineering",
+        "medical devices", "medical device engineering",
+        "medical technology", "clinical engineering",
+        "bioengineering", "bio engineering", "biological engineering",
+        "biosystems engineering", "biomechanics",
+        "biomaterials", "tissue engineering",
+        "rehabilitation engineering", "biomedical imaging",
+        "medical imaging technology",
+    ],
+    "mechatronics engineering": [
+        "mechatronics engineering", "mechatronics",
+        "mechatronic engineering", "mechatronic",
+        "mechatronics eng", "mechatronics engg",
+        "mechatronics and control engineering",
+        "mechatronics and robotics",
+        "robotics", "robotics engineering",
+        "robotics and automation", "robotics and control",
+        "robotics and mechatronics",
+        "robotics and intelligent systems", "robotic systems",
+        "automation", "automation engineering",
+        "automation and control", "industrial automation",
+        "automation and robotics", "automation technology",
+        "mechatronics technology",
+        "mechanical and electronics engineering",
+        "electromechanical engineering",
+        "electro-mechanical engineering",
+        "electro mechanical engineering", "electromechanical",
+    ],
+    "industrial engineering": [
+        "industrial engineering", "ie", "industrial eng",
+        "industrial engg", "industrial",
+        "industrial engineering technology",
+        "industrial and manufacturing engineering", "ime",
+        "manufacturing engineering", "manufacturing eng",
+        "manufacturing engg", "manufacturing",
+        "manufacturing technology", "manufacturing systems",
+        "manufacturing systems engineering",
+        "manufacturing processes",
+        "production engineering", "production eng",
+        "production engg",
+        "production and industrial engineering",
+        "production technology",
+        "industrial engineering and management",
+        "industrial and management engineering",
+        "industrial management",
+        "industrial and systems engineering",
+        "industrial systems engineering",
+        "systems engineering", "systems eng", "systems engg",
+        "operations research", "operational research",
+        "quality engineering", "reliability engineering",
+        "safety engineering",
+        "occupational health and safety", "ohs",
+        "ergonomics", "human factors engineering",
+    ],
+    "environmental engineering": [
+        "environmental engineering", "environmental eng",
+        "environmental engg",
+        "environmental engineering and management",
+        "environmental and civil engineering",
+        "environmental technology", "environmental technologies",
+        "environmental systems engineering",
+        "environmental protection engineering",
+        "environmental health engineering",
+        "pollution control", "pollution control engineering",
+        "waste management", "solid waste management",
+        "waste engineering", "waste water engineering",
+        "wastewater engineering", "wastewater treatment",
+        "water treatment", "water engineering",
+        "water and wastewater engineering",
+        "water and sanitation", "wash",
+        "sanitation engineering",
+        "air pollution engineering",
+        "sustainability engineering", "sustainable engineering",
+        "green engineering", "green technology",
+        "clean technology", "cleantech",
+    ],
+    "materials engineering": [
+        "materials engineering", "material engineering",
+        "materials eng", "materials engg",
+        "materials science", "material science",
+        "materials sciences",
+        "materials science and engineering",
+        "material science and engineering", "mse",
+        "materials technology",
+        "materials and metallurgical engineering",
+        "metallurgical and materials engineering",
+        "metallurgical engineering", "metallurgy",
+        "metallurgical", "metallurgical eng",
+        "physical metallurgy", "corrosion engineering",
+        "ceramic engineering", "ceramics",
+        "ceramic technology", "glass technology",
+        "composite materials", "composites",
+        "nanomaterials", "nano materials",
+        "nanotechnology", "nano technology",
+        "nanoscience", "nano science",
+        "nanoscience and nanotechnology",
+        "nano engineering", "nanoengineering",
+        "welding engineering", "welding technology",
+        "foundry technology", "semiconductor materials",
+    ],
+    "textile engineering": [
+        "textile engineering", "textile eng", "textile engg",
+        "textile", "textiles", "textile technology",
+        "textile technologies", "textile science",
+        "textile sciences", "textile and clothing",
+        "textile and apparel", "textile processing",
+        "textile chemistry", "textile chemical",
+        "textile dyeing and finishing", "textile dyeing",
+        "textile finishing", "wet processing",
+        "textile weaving", "weaving", "weaving technology",
+        "spinning", "spinning technology",
+        "knitting", "knitting technology",
+        "textile management", "textile merchandising",
+        "textile testing", "textile quality",
+        "textile manufacturing", "textile production",
+        "garment technology", "garment manufacturing",
+        "garment engineering", "apparel manufacturing",
+        "apparel technology", "apparel engineering",
+        "apparel merchandising", "apparel production",
+        "clothing technology",
+        "fibre science", "fiber science",
+        "fibre technology", "fiber technology",
+        "technical textiles",
+    ],
+    "instrumentation and control engineering": [
+        "instrumentation and control engineering",
+        "instrumentation and control", "instrumentation engineering",
+        "instrumentation eng", "instrumentation",
+        "instrumentation technology",
+        "instrumentation and measurement",
+        "control engineering", "control eng",
+        "control systems", "control systems engineering",
+        "control system engineering",
+        "control and automation",
+        "control and automation engineering",
+        "control and instrumentation",
+        "control and instrumentation engineering",
+        "control theory", "process control",
+        "process control engineering",
+        "process instrumentation", "process automation",
+        "industrial instrumentation", "industrial control",
+        "measurement and control", "metrology",
+        "metrology and instrumentation",
+        "scada", "plc", "plc and scada", "plc programming",
+    ],
+    "energy engineering": [
+        "energy engineering", "energy eng", "energy engg",
+        "energy", "energy systems",
+        "energy systems engineering", "energy technology",
+        "energy technologies", "energy management",
+        "energy and environment", "energy and power",
+        "energy studies", "energy science", "energy sciences",
+        "energy policy", "energy economics",
+        "renewable energy", "renewable energy engineering",
+        "renewable energy systems",
+        "renewable energy technology",
+        "renewable energy technologies",
+        "renewables", "renewable",
+        "sustainable energy", "sustainable energy engineering",
+        "sustainable energy systems",
+        "sustainable energy technology",
+        "green energy", "clean energy",
+        "alternative energy", "alternative energy engineering",
+        "solar energy", "solar energy engineering",
+        "solar engineering", "solar power", "solar technology",
+        "photovoltaics", "pv engineering",
+        "wind energy", "wind energy engineering", "wind power",
+        "hydro power", "hydropower", "hydropower engineering",
+        "bioenergy", "bio-energy", "biofuels",
+        "geothermal energy", "thermal energy", "thermal power",
+        "thermal power engineering", "power plant engineering",
+        "power generation", "power generation engineering",
+        "power plant technology", "smart grid", "smart grids",
+        "energy storage", "battery technology",
+        "hydrogen energy", "hydrogen technology",
+        "fuel cells", "fuel cell technology",
+    ],
+    "nuclear engineering": [
+        "nuclear engineering", "nuclear eng", "nuclear engg",
+        "nuclear", "nuclear science", "nuclear sciences",
+        "nuclear science and engineering",
+        "nuclear technology", "nuclear power",
+        "nuclear power engineering", "nuclear energy",
+        "nuclear energy engineering",
+        "nuclear physics and engineering",
+        "nuclear medicine technology",
+        "nuclear safety", "nuclear security",
+        "radiation protection", "radiation physics",
+        "radiation engineering", "radiological engineering",
+        "radiological sciences", "health physics",
+        "reactor engineering", "reactor physics",
+        "reactor technology", "nuclear materials",
+        "nuclear chemistry", "radiochemistry",
+        "isotope technology",
+    ],
+    "marine engineering": [
+        "marine engineering", "marine eng", "marine engg",
+        "marine", "naval architecture",
+        "naval architecture and marine engineering",
+        "naval engineering", "naval science", "naval",
+        "ship building", "shipbuilding", "ship design",
+        "ship technology", "shipping", "shipping management",
+        "shipping and logistics", "maritime",
+        "maritime studies", "maritime science",
+        "maritime sciences", "maritime engineering",
+        "maritime management", "maritime transport",
+        "maritime law", "nautical science",
+        "nautical sciences", "nautical studies",
+        "nautical technology", "navigation",
+        "marine navigation", "marine technology",
+        "marine sciences", "marine science",
+        "marine transportation", "marine operations",
+        "offshore engineering", "offshore technology",
+        "ocean engineering", "oceanography",
+        "port management", "port and shipping management",
+    ],
+    "automotive engineering": [
+        "automotive engineering", "automotive eng",
+        "automotive engg", "automotive",
+        "automotive technology", "automotive technologies",
+        "automotive systems", "automotive systems engineering",
+        "automotive and mechanical engineering",
+        "automobile engineering", "automobile eng",
+        "automobile engg", "automobile", "automobiles",
+        "auto engineering", "auto mechanics", "auto mechanic",
+        "automotive mechanics", "automotive mechanic",
+        "vehicle engineering", "vehicle technology",
+        "vehicle dynamics", "motor vehicle engineering",
+        "motor vehicle", "motorsport engineering",
+        "motorsport", "motorsports",
+        "electric vehicles", "electric vehicle engineering",
+        "ev engineering", "hybrid vehicles",
+        "automotive electronics", "automotive design",
+        "transport technology", "transportation technology",
+    ],
+    "agricultural engineering": [
+        "agricultural engineering", "agri engineering",
+        "agricultural eng", "agricultural engg",
+        "agriculture engineering", "agri engg",
+        "agricultural mechanization",
+        "agricultural mechanisation",
+        "farm machinery", "farm machinery and power",
+        "farm power", "farm engineering", "farm mechanization",
+        "agricultural machinery",
+        "agricultural machinery engineering",
+        "irrigation and drainage engineering",
+        "soil and water engineering",
+        "soil and water conservation",
+        "soil and water conservation engineering",
+        "land and water resources engineering",
+        "land and water management", "water management",
+        "watershed management", "agricultural structures",
+        "post harvest engineering", "post-harvest engineering",
+        "post harvest technology", "post-harvest technology",
+        "food process engineering",
+        "agro-industrial engineering",
+        "agro industrial engineering",
+        "precision agriculture", "precision farming",
+        "agricultural technology", "agri technology",
+        "agritech", "agri-tech", "agricultural automation",
+    ],
+    "engineering management": [
+        "engineering management", "engineering mgmt",
+        "engineering and management",
+        "engineering management and technology",
+        "technology management", "technology mgmt",
+        "management of technology", "mot",
+        "technology and innovation management",
+        "innovation management",
+        "innovation and technology management",
+        "engineering project management",
+        "engineering economics",
+        "engineering and technology management",
+        "engineering business management",
+        "business engineering", "technical management",
+        "technical project management",
+        "technology entrepreneurship", "technopreneurship",
+        "engineering leadership", "systems management",
+        "r&d management",
+        "research and development management",
+        "product management", "product development",
+    ],
+    "engineering (general)": [
+        "engineering", "engg", "eng", "general engineering",
+        "engineering general", "engineering sciences",
+        "engineering science", "engineering technology",
+        "engineering technologies", "applied engineering",
+        "applied engineering technology", "engineering studies",
+        "engineering fundamentals", "interdisciplinary engineering",
+        "multidisciplinary engineering", "integrated engineering",
+        "engineering design", "engineering and design",
+        "engineering physics", "engineering mathematics",
+        "engineering and technology", "engineering and applied sciences",
+    ],
+
+    # ---------------------------------------------------------
+    # BUILT ENVIRONMENT / PLANNING / GEO
+    # ---------------------------------------------------------
+    "architecture": [
+        "architecture", "arch", "arch.", "architectural",
+        "architectural engineering", "architectural design",
+        "architectural technology", "architectural studies",
+        "architectural science", "architectural sciences",
+        "architecture and design", "architecture and planning",
+        "architecture and urban design", "architecture and urbanism",
+        "architecture and interior design",
+        "architecture and construction",
+        "architectural and building engineering",
+        "building design", "building architecture",
+        "building science", "building sciences", "building studies",
+        "landscape architecture", "landscape design",
+        "landscape studies", "landscape and urban design",
+        "urban design", "urban architecture",
+        "sustainable architecture", "green architecture",
+        "heritage conservation", "conservation architecture",
+        "architectural conservation", "restoration architecture",
+        "historic preservation",
+    ],
+    "urban planning": [
+        "urban planning", "city planning",
+        "city and regional planning", "town planning",
+        "town and country planning",
+        "urban and regional planning", "regional planning",
+        "urban studies", "urban development",
+        "urban management", "urban policy",
+        "urban and rural planning",
+        "urban and rural development", "rural development",
+        "rural planning", "rural studies",
+        "spatial planning", "physical planning",
+        "land use planning", "land management",
+        "land administration", "land development",
+        "real estate", "real estate management",
+        "real estate development",
+        "real estate and construction management",
+        "property management", "property development",
+        "property studies", "estate management",
+        "housing", "housing studies",
+        "housing and urban development",
+        "transport planning", "transportation planning",
+        "sustainable urban development",
+        "urban sustainability", "community planning",
+        "planning", "planning and development",
+        "development planning", "infrastructure planning",
+        "infrastructure management", "infrastructure development",
+        "smart cities", "smart city planning",
+    ],
+    "geomatics": [
+        "geomatics", "geomatics engineering", "geomatic",
+        "geomatic engineering", "geomatics and surveying",
+        "surveying", "surveying and mapping",
+        "survey engineering", "surveying engineering",
+        "land surveying", "geodetic engineering",
+        "geodesy", "geodesy and geomatics",
+        "geodetic science", "geodetic sciences",
+        "cartography", "cartography and gis",
+        "mapping", "mapping sciences", "photogrammetry",
+        "photogrammetry and remote sensing",
+        "remote sensing", "remote sensing and gis",
+        "rs and gis", "rs/gis", "gis", "g.i.s",
+        "gis and remote sensing", "gis and cartography",
+        "geographic information systems",
+        "geographic information system",
+        "geographical information systems",
+        "geographical information system",
+        "geographic information science",
+        "geographical information science",
+        "gis science", "geoinformatics", "geo-informatics",
+        "geo informatics", "geoinformation", "geo-information",
+        "geospatial", "geospatial science",
+        "geospatial sciences", "geospatial engineering",
+        "geospatial technology", "geospatial technologies",
+        "geospatial information science",
+        "geospatial analysis", "spatial information science",
+        "spatial sciences", "spatial analysis",
+        "spatial data science", "location intelligence",
+        "earth observation", "space and geoinformation",
+    ],
+
+    # ---------------------------------------------------------
+    # BUSINESS / MANAGEMENT
+    # ---------------------------------------------------------
+    "business administration": [
+        "business administration", "bba", "business admin",
+        "business management", "business admin.",
+        "business adm", "bus admin", "b.admin",
+        "business", "business studies",
+        "business and management", "business & management",
+        "business and administration", "business & administration",
+        "business administration and management",
+        "business mgmt", "business management studies",
+        "business sciences", "business science",
+        "business strategy", "business policy", "business ethics",
+        "business communication",
+        "business and technology", "business computing",
+        "administration", "administrative sciences",
+        "administrative science", "administrative studies",
+        "administration and management",
+        "management", "mgmt", "mgt",
+        "management sciences", "management science",
+        "management studies",
+        "management and administration",
+        "management and business",
+        "management and leadership",
+        "organizational behavior", "organisational behaviour",
+        "organizational management",
+        "organisational management",
+        "organizational leadership",
+        "organisational leadership", "leadership",
+        "leadership and management",
+        "general management", "executive management",
+        "executive leadership", "strategic management",
+        "strategy", "strategic leadership",
+        "corporate management", "corporate strategy",
+        "corporate governance", "enterprise management",
+        "small business management", "sme management",
+        "family business management", "retail management",
+        "sales management", "business development",
+        "business analysis", "business process management",
+        "management consulting", "business consulting",
+        "business operations", "operations management",
+        "change management", "organizational change",
+        "organisational change", "non-profit management",
+        "nonprofit management", "ngo management",
+        "office management", "office administration",
+        "secretarial studies", "secretarial science",
+    ],
+    "commerce": [
+        "commerce", "bcom", "b.com", "mcom", "m.com",
+        "b com", "m com", "b-com", "m-com",
+        "commerce and business", "commerce & business",
+        "commerce and accounting", "commerce & accounting",
+        "commerce and finance", "commerce & finance",
+        "commerce and management", "commerce & management",
+        "commerce and economics", "commerce & economics",
+        "commerce and banking", "commerce & banking",
+        "commerce and marketing", "commerce & marketing",
+        "commerce and trade", "commerce & trade",
+        "commerce and law",
+        "commerce and information technology",
+        "commerce and it",
+        "commerce and computer applications",
+        "general commerce", "commerce general",
+        "commercial studies", "commercial science",
+        "commercial sciences", "commercial education",
+        "commercial management", "commercial",
+        "commerce group", "commerce stream",
+        "commerce faculty", "faculty of commerce",
+        "principles of commerce", "commercial subjects",
+        "commerce subjects", "bs commerce", "bscom",
+        "ms commerce",
+    ],
+    "accounting": [
+        "accounting", "accountancy", "accounts",
+        "accounting and finance", "accounting & finance",
+        "accounting and auditing", "accounting & auditing",
+        "accounting and taxation", "accounting & taxation",
+        "accounting and tax", "accounting and law",
+        "accounting and business", "accounting & business",
+        "accounting and management", "accounting & management",
+        "accounting and information systems",
+        "accounting information systems",
+        "accounting technology",
+        "accounting and economics",
+        "professional accounting", "financial accounting",
+        "financial accounting and reporting",
+        "financial reporting",
+        "financial reporting and analysis",
+        "financial statement analysis",
+        "cost accounting", "cost and management accounting",
+        "cost & management accounting",
+        "management accounting", "managerial accounting",
+        "cost accountancy", "costing",
+        "cost and works accountancy",
+        "auditing", "audit", "audit and assurance",
+        "internal audit", "internal auditing",
+        "forensic accounting", "forensic audit",
+        "fraud examination",
+        "taxation", "tax", "tax accounting", "tax law",
+        "tax management", "tax planning", "tax consultancy",
+        "income tax", "sales tax",
+        "public sector accounting", "government accounting",
+        "islamic accounting", "ifrs",
+        "chartered accountancy", "chartered accountant",
+        "chartered accountants", "icap", "acca",
+        "chartered certified accountant", "cima",
+        "chartered institute of management accountants", "icmap",
+        "cma", "certified management accountant",
+        "cpa", "certified public accountant",
+        "cia", "certified internal auditor",
+        "cfe", "certified fraud examiner", "cisa",
+        "bookkeeping", "book keeping", "book-keeping",
+        "accounting technician", "aat",
+    ],
+    "finance": [
+        "finance", "financial", "financial studies",
+        "financial management", "financial mgmt",
+        "financial economics", "financial engineering",
+        "financial mathematics", "financial maths",
+        "mathematical finance", "quantitative finance",
+        "quant finance", "computational finance",
+        "financial analytics", "financial analysis",
+        "financial analysis and management",
+        "financial markets",
+        "financial markets and institutions",
+        "financial institutions", "financial services",
+        "financial planning",
+        "financial planning and analysis", "fp&a",
+        "financial modelling", "financial modeling",
+        "financial risk management", "risk management",
+        "risk and insurance", "risk & insurance",
+        "risk management and insurance",
+        "risk analysis", "risk analytics",
+        "enterprise risk management", "financial risk",
+        "credit risk", "credit analysis", "credit management",
+        "market risk", "operational risk",
+        "corporate finance",
+        "corporate financial management",
+        "corporate finance and investment",
+        "treasury", "treasury management",
+        "treasury and risk management",
+        "investment", "investments", "investment management",
+        "investment banking", "investment analysis",
+        "investment finance", "investment and finance",
+        "investment and portfolio management",
+        "portfolio management", "portfolio analysis",
+        "asset management", "wealth management",
+        "private wealth management", "fund management",
+        "hedge funds", "private equity", "venture capital",
+        "capital markets", "capital market",
+        "securities", "securities analysis",
+        "stock market", "stock exchange",
+        "stock broking", "stockbroking",
+        "equity analysis", "equity research",
+        "fixed income", "derivatives",
+        "forex", "foreign exchange",
+        "international finance",
+        "international financial management",
+        "global finance", "public finance",
+        "public financial management",
+        "public sector finance", "government finance",
+        "fiscal studies", "development finance",
+        "microfinance", "micro finance", "micro-finance",
+        "rural finance", "agricultural finance",
+        "agri finance", "housing finance",
+        "real estate finance", "project finance",
+        "infrastructure finance", "trade finance",
+        "structured finance", "fintech", "fin-tech",
+        "financial technology", "financial technologies",
+        "digital finance", "blockchain finance",
+        "cryptocurrency", "blockchain",
+        "blockchain technology", "insurance",
+        "insurance and risk management",
+        "insurance management", "insurance studies",
+        "finance and accounting", "finance & accounting",
+        "finance and banking", "finance & banking",
+        "finance and economics", "finance & economics",
+        "finance and investment", "finance and management",
+        "finance and marketing",
+        "master of finance", "master of financial engineering",
+        "master of quantitative finance", "mqf",
+        "cfa", "chartered financial analyst",
+        "frm", "financial risk manager",
+        "cfp", "certified financial planner",
+    ],
+    "marketing": [
+        "marketing", "marketing management", "marketing mgmt",
+        "marketing and sales", "marketing & sales",
+        "marketing and sales management",
+        "marketing and advertising", "marketing & advertising",
+        "marketing and communications", "marketing & communications",
+        "marketing communications",
+        "marketing and branding",
+        "marketing and brand management",
+        "marketing and consumer behavior",
+        "marketing and retail",
+        "marketing and e-commerce",
+        "marketing and digital media",
+        "marketing and management",
+        "marketing strategy", "strategic marketing",
+        "marketing analytics", "marketing research",
+        "market research", "market analysis",
+        "market intelligence", "marketing science",
+        "marketing sciences", "marketing studies",
+        "principles of marketing", "international marketing",
+        "global marketing", "export marketing",
+        "industrial marketing", "b2b marketing",
+        "b2c marketing", "consumer marketing",
+        "consumer behavior", "consumer behaviour",
+        "consumer research", "services marketing",
+        "relationship marketing",
+        "customer relationship management", "crm",
+        "customer experience", "customer service",
+        "customer service management",
+        "key account management", "account management",
+        "channel management", "distribution management",
+        "pricing", "pricing strategy",
+        "product marketing", "brand management",
+        "brand strategy", "branding", "brand development",
+        "brand communication", "advertising",
+        "advertising and promotion",
+        "advertising management", "copywriting",
+        "creative advertising", "media planning",
+        "media buying", "promotion", "promotions",
+        "promotion management", "sales promotion",
+        "direct marketing", "personal selling", "selling",
+        "salesmanship", "sales and distribution",
+        "retail marketing", "merchandising",
+        "fashion marketing", "fashion merchandising",
+        "fashion management", "fashion business",
+        "luxury brand management", "luxury management",
+        "tourism marketing", "hospitality marketing",
+        "event marketing", "sports marketing",
+        "entertainment marketing", "media marketing",
+        "social media marketing", "social media",
+        "social media management", "social media strategy",
+        "social media analytics", "digital marketing",
+        "digital marketing and analytics",
+        "digital media marketing", "digital strategy",
+        "digital advertising", "digital business",
+        "digital business management",
+        "digital transformation",
+        "digital entrepreneurship", "digital commerce",
+        "online marketing", "internet marketing",
+        "web marketing", "web analytics",
+        "seo", "search engine optimization",
+        "search engine optimisation",
+        "search engine marketing", "sem", "ppc",
+        "content marketing", "content strategy",
+        "content creation", "email marketing",
+        "affiliate marketing", "influencer marketing",
+        "performance marketing", "growth marketing",
+        "growth hacking", "inbound marketing",
+        "e-commerce", "ecommerce", "e commerce",
+        "e-business", "ebusiness", "electronic commerce",
+        "online business", "online retail",
+        "m-commerce", "mobile marketing",
+        "master of marketing", "mba marketing",
+        "mba digital marketing", "cim",
+        "chartered institute of marketing",
+    ],
+    "human resource management": [
+        "human resource management", "human resources management",
+        "human resource", "human resources", "hr", "hrm",
+        "hrd", "human resource development",
+        "human resources development",
+        "hr management", "hr development",
+        "hr and management", "hr and administration",
+        "hr and organizational development",
+        "human capital", "human capital management",
+        "human capital development", "people management",
+        "people development", "people analytics",
+        "hr analytics", "workforce management",
+        "workforce development", "workforce planning",
+        "talent management", "talent acquisition",
+        "talent development", "recruitment",
+        "recruitment and selection", "staffing",
+        "employee relations", "employment relations",
+        "industrial relations", "labor relations",
+        "labour relations", "labor studies",
+        "labour studies", "labor law", "labour law",
+        "employment law", "employee engagement",
+        "employee development", "employee training",
+        "training and development", "training & development",
+        "learning and development", "learning & development",
+        "organizational development",
+        "organisational development",
+        "organization development",
+        "organisation development",
+        "compensation and benefits", "compensation & benefits",
+        "compensation management", "reward management",
+        "payroll", "payroll management",
+        "hr operations", "hr information systems",
+        "hris", "hr systems", "hr technology",
+        "hr strategy", "strategic hr",
+        "strategic human resource management",
+        "strategic hrm",
+        "international human resource management",
+        "international hrm", "global hr",
+        "global human resource management",
+        "diversity and inclusion", "diversity management",
+        "master of human resource management",
+        "mba hr", "mba hrm", "mba human resource",
+        "mba human resources",
+        "mba human resource management",
+        "shrm-cp", "shrm cp", "shrm-scp", "phr", "sphr",
+        "cipd",
+        "chartered institute of personnel and development",
+    ],
+    "supply chain management": [
+        "supply chain management", "supply chain",
+        "supply-chain", "supply chain mgmt", "scm",
+        "supply chain and logistics",
+        "supply chain & logistics",
+        "supply chain and operations",
+        "supply chain & operations",
+        "supply chain and operations management",
+        "supply chain operations",
+        "supply chain engineering",
+        "supply chain analytics",
+        "supply chain planning",
+        "supply chain strategy",
+        "supply chain optimization",
+        "supply chain risk management",
+        "supply chain technology",
+        "supply chain and procurement",
+        "logistics", "logistics management",
+        "logistics and transport", "logistics & transport",
+        "logistics and transportation",
+        "logistics and supply chain",
+        "logistics & supply chain",
+        "logistics and supply chain management",
+        "logistics engineering",
+        "logistics and warehousing",
+        "logistics operations",
+        "logistics and distribution",
+        "freight forwarding", "freight management",
+        "freight and logistics", "cargo management",
+        "global logistics", "international logistics",
+        "global supply chain", "international supply chain",
+        "transport management",
+        "transport and logistics",
+        "transportation management",
+        "transportation and logistics",
+        "warehouse management", "warehousing",
+        "warehouse operations",
+        "inventory management", "inventory control",
+        "stores management", "materials management",
+        "material management", "materials planning",
+        "demand planning", "demand forecasting",
+        "demand management", "capacity planning",
+        "production planning",
+        "production planning and control",
+        "production and operations management",
+        "production control",
+        "operations and supply chain management",
+        "operations and production management",
+        "operations and logistics management",
+        "procurement", "procurement management",
+        "procurement and supply",
+        "procurement and supply management",
+        "procurement and logistics",
+        "procurement and contract management",
+        "procurement and sourcing",
+        "procurement and supply chain management",
+        "purchasing", "purchasing management",
+        "purchasing and supply", "strategic sourcing",
+        "sourcing", "category management",
+        "vendor management", "supplier management",
+        "supplier relationship management",
+        "contract management", "contracts management",
+        "contract administration",
+        "public procurement", "public procurement management",
+        "cips",
+        "chartered institute of procurement and supply",
+        "cscp", "cpim", "cilt",
+        "chartered institute of logistics and transport",
+        "lean supply chain", "lean logistics",
+        "green supply chain", "sustainable supply chain",
+        "humanitarian logistics", "reverse logistics",
+        "digital supply chain",
+        "logistics technology", "logistics analytics",
+    ],
+    "banking": [
+        "banking", "banking and finance", "banking & finance",
+        "banking and insurance", "banking management",
+        "banking and management", "banking and accounting",
+        "banking and economics", "banking and investment",
+        "banking and financial services",
+        "banking operations", "banking law",
+        "banking and law", "banking regulation",
+        "banking supervision", "banking studies",
+        "banking practice", "banking practices",
+        "banking techniques", "banking technology",
+        "banking systems", "bank management",
+        "bank administration", "bank operations",
+        "bank officer training", "bank training",
+        "bank credit", "bank lending",
+        "commercial banking", "retail banking",
+        "corporate banking", "central banking",
+        "central bank", "monetary policy",
+        "money and banking", "money banking and finance",
+        "financial intermediation",
+        "microfinance banking",
+        "agricultural banking", "agri banking",
+        "rural banking", "cooperative banking",
+        "co-operative banking",
+        "institute of bankers pakistan", "iobp",
+        "institute of bankers",
+        "chartered banker", "caiib", "jaiib",
+    ],
+    "islamic finance": [
+        "islamic finance", "islamic banking",
+        "islamic banking and finance",
+        "islamic banking & finance",
+        "islamic banking and insurance",
+        "islamic banking and takaful",
+        "islamic finance and banking",
+        "islamic finance & banking",
+        "islamic financial services",
+        "islamic financial management",
+        "islamic financial institutions",
+        "islamic capital markets",
+        "islamic economics",
+        "islamic economics and banking",
+        "islamic economics and finance",
+        "islamic economics, banking and finance",
+        "islamic commercial law",
+        "islamic law of contracts",
+        "fiqh of finance", "fiqh al-muamalat",
+        "fiqh al muamalat", "muamalat", "mu'amalat",
+        "shariah banking", "shariah finance",
+        "sharia banking", "sharia finance",
+        "shariah compliance", "sharia compliance",
+        "shariah advisory", "shariah audit",
+        "shariah governance", "shariah supervision",
+        "shariah and finance", "shariah and banking",
+        "takaful", "takaful and insurance",
+        "diploma in islamic banking",
+        "diploma in islamic finance",
+        "certificate in islamic banking",
+        "certificate in islamic finance",
+        "islamic microfinance", "halal economy",
+        "zakat and waqf",
+    ],
+    "economics": [
+        "economics", "economic", "economic sciences",
+        "economic science",
+        "economics and finance", "economics & finance",
+        "economics and management", "economics & management",
+        "economics and business", "economics & business",
+        "economics and statistics",
+        "economics and mathematics",
+        "economics and econometrics",
+        "economics and politics",
+        "economics and political science",
+        "economics and public policy",
+        "economics and development",
+        "economics and development studies",
+        "economics and international relations",
+        "economics and sociology",
+        "economics and law",
+        "philosophy politics and economics", "ppe",
+        "economics and geography", "economics and history",
+        "economics and computer science",
+        "economics and data science",
+        "economics and analytics",
+        "applied economics",
+        "applied economics and finance",
+        "applied economics and statistics",
+        "applied economics and policy",
+        "applied econometrics",
+        "applied microeconomics",
+        "applied macroeconomics",
+        "theoretical economics", "economic theory",
+        "economic analysis", "economic policy",
+        "economic policy analysis", "economic planning",
+        "economic development", "economic growth",
+        "economic history", "economic geography",
+        "economic statistics", "economic modelling",
+        "economic modeling", "economic research",
+        "economic systems", "economic reforms",
+        "economic management",
+        "econometrics", "econometrics and statistics",
+        "econometrics and operations research",
+        "mathematical economics",
+        "mathematical economics and econometrics",
+        "quantitative economics",
+        "quantitative methods in economics",
+        "quantitative methods", "quantitative techniques",
+        "computational economics",
+        "experimental economics", "behavioral economics",
+        "behavioural economics", "game theory",
+        "microeconomics", "micro economics",
+        "macroeconomics", "macro economics",
+        "micro and macroeconomics",
+        "international economics",
+        "international economics and finance",
+        "international economics and trade",
+        "international economic relations",
+        "international political economy", "ipe",
+        "political economy", "political economics",
+        "global economics", "global economy",
+        "world economy", "development economics",
+        "economics of development", "poverty economics",
+        "welfare economics", "social economics",
+        "labor economics", "labour economics",
+        "labor and employment economics",
+        "population economics", "demographic economics",
+        "demography", "health economics",
+        "health economics and policy",
+        "education economics", "economics of education",
+        "public economics", "public sector economics",
+        "public choice", "fiscal economics", "tax economics",
+        "monetary economics", "money and finance",
+        "financial economics studies",
+        "banking economics", "industrial economics",
+        "industrial organization", "industrial organisation",
+        "business economics", "managerial economics",
+        "managerial economics and strategy",
+        "economics for business",
+        "economics for managers",
+        "agricultural economics", "agri economics",
+        "agricultural economics and management",
+        "agricultural economics and policy",
+        "agricultural and applied economics",
+        "agricultural and resource economics",
+        "agribusiness", "agri business", "agri-business",
+        "agribusiness management",
+        "agricultural marketing",
+        "agricultural business",
+        "farm management", "farm economics",
+        "rural economics", "rural economy",
+        "environmental economics",
+        "environmental economics and policy",
+        "environmental and resource economics",
+        "resource economics", "natural resource economics",
+        "ecological economics", "urban economics",
+        "urban and regional economics",
+        "regional economics", "spatial economics",
+        "tourism economics", "sports economics",
+        "cultural economics", "law and economics",
+        "economic law", "competition economics",
+        "economic studies", "economics studies",
+        "economics major", "economics group",
+        "economics stream",
+    ],
+    "entrepreneurship": [
+        "entrepreneurship", "entrepreneur",
+        "entrepreneurial studies",
+        "entrepreneurship and innovation",
+        "entrepreneurship and small business",
+        "entrepreneurship and management",
+        "entrepreneurship development",
+        "entrepreneurial management",
+        "entrepreneurial finance",
+        "entrepreneurial leadership",
+        "startup management", "startup studies",
+        "startups", "start-ups",
+        "venture creation", "venture management",
+        "new venture creation",
+        "social entrepreneurship", "social enterprise",
+        "social business",
+        "innovation and entrepreneurship",
+        "technology entrepreneurship studies",
+        "creative entrepreneurship",
+        "business incubation", "incubation",
+    ],
+    "project management": [
+        "project management", "project mgmt",
+        "project management and leadership",
+        "project and program management",
+        "program management", "programme management",
+        "portfolio and project management",
+        "project planning",
+        "project planning and control",
+        "project controls", "project delivery",
+        "project leadership", "project engineering",
+        "project and construction management",
+        "pmp", "pmi-pmp", "pmi",
+        "project management professional",
+        "prince2", "prince 2",
+        "prince2 practitioner", "capm",
+        "agile project management",
+        "agile", "scrum", "scrum master",
+        "pmi-acp", "safe", "msp",
+        "managing successful programmes",
+        "master of project management",
+        "diploma in project management",
+        "certificate in project management",
+    ],
+    "public administration": [
+        "public administration", "public admin",
+        "public administration and management",
+        "public management", "public sector management",
+        "public service", "public sector",
+        "public affairs", "public policy",
+        "public policy and administration",
+        "public policy and management",
+        "public policy and governance",
+        "public policy analysis", "policy studies",
+        "policy analysis", "policy and governance",
+        "governance", "good governance",
+        "governance and public policy",
+        "governance and public management",
+        "local government", "local governance",
+        "local government administration",
+        "municipal administration",
+        "municipal management", "civil service",
+        "civil service administration",
+        "government and politics", "government studies",
+        "government", "governmental studies",
+        "state and governance", "administrative law",
+        "mpa", "master of public administration",
+        "mpp", "master of public policy",
+        "bpa", "bachelor of public administration",
+        "css", "pms", "css preparation",
+    ],
+    "actuarial science": [
+        "actuarial science", "actuarial sciences",
+        "actuarial studies", "actuarial mathematics",
+        "actuarial",
+        "actuarial and financial mathematics",
+        "actuarial and risk management",
+        "actuarial and insurance science",
+        "actuarial finance", "actuarial statistics",
+        "insurance mathematics", "actuarial analytics",
+        "actuary",
+        "fellow of the institute of actuaries",
+        "society of actuaries",
+        "institute and faculty of actuaries",
+        "casualty actuarial society",
+    ],
+    "international business": [
+        "international business",
+        "international business management",
+        "international business administration",
+        "international management", "global business",
+        "global management", "global business management",
+        "global business and management",
+        "international trade",
+        "international trade and finance",
+        "international trade and business",
+        "foreign trade", "trade and commerce",
+        "trade management",
+        "export and import management",
+        "export import management",
+        "international commerce",
+        "international marketing and business",
+        "cross-cultural management",
+        "international entrepreneurship",
+        "international business law",
+        "mib", "master of international business",
+    ],
+    "hospitality and tourism": [
+        "hospitality and tourism", "hospitality",
+        "hospitality management", "hotel management",
+        "hotel and tourism management",
+        "hotel and restaurant management",
+        "hotel and catering management",
+        "hotel administration", "hotel operations",
+        "hospitality and hotel management",
+        "hospitality and tourism management",
+        "hospitality business", "hospitality studies",
+        "hospitality administration", "tourism",
+        "tourism management", "tourism and hospitality",
+        "tourism and hospitality management",
+        "tourism studies",
+        "tourism and travel management",
+        "travel and tourism",
+        "travel and tourism management",
+        "travel management", "travel and leisure",
+        "tour guiding", "tour operations", "tour management",
+        "tourism development", "tourism planning",
+        "tourism and heritage", "heritage and tourism",
+        "ecotourism", "eco-tourism", "sustainable tourism",
+        "culinary arts", "culinary science",
+        "culinary management", "cookery",
+        "food and beverage management",
+        "food and beverage", "catering",
+        "catering management", "catering technology",
+        "restaurant management",
+        "event management", "events management",
+        "event planning", "events and hospitality",
+        "conference and event management",
+        "leisure management", "recreation management",
+        "resort management",
+        "diploma in hotel management",
+        "diploma in hospitality", "diploma in tourism",
+        "diploma in culinary arts",
+    ],
+
+    # ---------------------------------------------------------
+    # NATURAL / PURE SCIENCES
+    # ---------------------------------------------------------
+    "mathematics": [
+        "mathematics", "math", "maths",
+        "applied mathematics", "pure mathematics",
+        "mathematical sciences", "mathematical science",
+        "math sciences", "mathematical",
+        "mathematics and statistics",
+        "mathematics and computing",
+        "mathematics and computer science",
+        "mathematics and physics",
+        "mathematics and economics",
+        "computational mathematics",
+        "industrial mathematics",
+        "financial mathematics studies",
+        "applied and computational mathematics",
+        "applied maths", "pure maths",
+        "algebra", "calculus", "analysis", "topology",
+        "geometry", "number theory",
+        "discrete mathematics", "discrete math",
+        "mathematical modelling", "mathematical modeling",
+        "mathematical logic", "differential equations",
+        "numerical analysis", "numerical methods",
+        "mathematical physics",
+    ],
+    "statistics": [
+        "statistics", "stats", "stat",
+        "statistical science", "statistical sciences",
+        "applied statistics", "mathematical statistics",
+        "statistical analysis", "statistical methods",
+        "statistical techniques", "statistical computing",
+        "computational statistics",
+        "statistics and mathematics",
+        "statistics and operations research",
+        "statistics and data science",
+        "statistics and probability",
+        "probability and statistics",
+        "probability", "probability theory",
+        "stochastic processes",
+        "biostatistics", "bio-statistics", "bio statistics",
+        "medical statistics", "health statistics",
+        "official statistics", "survey statistics",
+        "survey methodology", "sampling theory",
+        "experimental design",
+        "design of experiments",
+        "regression analysis", "time series analysis",
+        "multivariate analysis", "psychometrics",
+        "mstat", "m.stat",
+    ],
+    "physics": [
+        "physics", "applied physics",
+        "physical sciences", "physical science",
+        "theoretical physics", "nuclear physics",
+        "astrophysics", "astronomy",
+        "astronomy and astrophysics",
+        "astronomy and space science",
+        "medical physics", "engineering physics",
+        "computational physics",
+        "condensed matter physics",
+        "solid state physics", "particle physics",
+        "high energy physics", "plasma physics",
+        "optics", "laser physics",
+        "quantum physics", "quantum mechanics",
+        "quantum computing", "quantum information",
+        "atomic and molecular physics",
+        "atmospheric physics", "geophysics",
+        "biophysics", "bio physics",
+        "electronic physics", "electronics physics",
+        "mathematical physics studies",
+        "physics and astronomy",
+        "physics and mathematics",
+        "physics and chemistry",
+        "physics and electronics",
+        "physics education",
+    ],
+    "chemistry": [
+        "chemistry", "applied chemistry",
+        "organic chemistry", "inorganic chemistry",
+        "analytical chemistry", "physical chemistry",
+        "industrial chemistry",
+        "pharmaceutical chemistry",
+        "chemical sciences", "chemical science",
+        "polymer chemistry",
+        "environmental chemistry", "chem",
+        "medicinal chemistry",
+        "theoretical chemistry",
+        "computational chemistry",
+        "quantum chemistry", "green chemistry",
+        "organometallic chemistry",
+        "coordination chemistry",
+        "surface chemistry", "electrochemistry",
+        "photochemistry", "nuclear chemistry studies",
+        "food chemistry", "forensic chemistry",
+        "agricultural chemistry", "soil chemistry",
+        "petroleum chemistry",
+        "chemistry and biochemistry",
+        "chemistry and physics",
+        "chemistry and mathematics",
+        "chemistry and materials science",
+        "chemical analysis", "chemistry education",
+    ],
+    "biology": [
+        "biology", "biological sciences", "biological science",
+        "bio", "life sciences", "life science",
+        "biosciences", "bio sciences", "bio-sciences",
+        "biological studies", "general biology",
+        "applied biology", "applied biosciences",
+        "molecular biology", "molecular biosciences",
+        "molecular biology and genetics",
+        "cell biology", "cell and molecular biology",
+        "cellular biology",
+        "developmental biology", "evolutionary biology",
+        "marine biology", "freshwater biology",
+        "conservation biology", "wildlife biology",
+        "wildlife management",
+        "wildlife and fisheries", "wildlife",
+        "fisheries", "fisheries and aquaculture",
+        "fisheries science", "aquaculture",
+        "aquatic biology", "aquatic sciences", "limnology",
+        "ecology", "ecology and environment",
+        "ecology and evolution", "ecosystem science",
+        "physiology", "human physiology",
+        "animal physiology", "plant physiology",
+        "neuroscience", "neurobiology", "neuro science",
+        "behavioral neuroscience",
+        "immunology", "virology", "parasitology",
+        "entomology", "ethology", "animal behavior",
+        "animal science", "animal sciences",
+        "animal husbandry", "anatomy", "histology",
+        "embryology", "toxicology", "pharmacology",
+        "pharmacology and toxicology",
+        "biology education",
+    ],
+    "microbiology": [
+        "microbiology", "micro biology", "micro-biology",
+        "microbiology and immunology",
+        "microbiology and biotechnology",
+        "microbiology and molecular genetics",
+        "applied microbiology",
+        "medical microbiology",
+        "clinical microbiology",
+        "industrial microbiology",
+        "environmental microbiology",
+        "food microbiology",
+        "agricultural microbiology",
+        "soil microbiology",
+        "veterinary microbiology",
+        "pharmaceutical microbiology",
+        "bacteriology", "mycology",
+        "microbial biotechnology",
+        "microbial genetics", "microbial ecology",
+        "microbiome",
+    ],
+    "biochemistry": [
+        "biochemistry", "bio-chemistry", "bio chemistry",
+        "biochemical sciences",
+        "biochemistry and molecular biology",
+        "biochemistry and biotechnology",
+        "biochemistry and genetics",
+        "clinical biochemistry",
+        "medical biochemistry",
+        "applied biochemistry",
+        "agricultural biochemistry",
+        "plant biochemistry", "food biochemistry",
+        "nutritional biochemistry",
+        "enzymology", "enzyme technology",
+        "biophysical chemistry", "chemical biology",
+        "molecular biochemistry", "protein chemistry",
+    ],
+    "biotechnology": [
+        "biotechnology", "bio-technology", "bio technology",
+        "biotech",
+        "biotechnology and genetic engineering",
+        "genetic engineering",
+        "biotechnology and bioinformatics",
+        "applied biotechnology",
+        "industrial biotechnology",
+        "agricultural biotechnology",
+        "agri biotechnology", "plant biotechnology",
+        "animal biotechnology",
+        "medical biotechnology",
+        "pharmaceutical biotechnology",
+        "environmental biotechnology",
+        "food biotechnology",
+        "marine biotechnology",
+        "microbial biotechnology studies",
+        "molecular biotechnology",
+        "bioprocess technology", "bioprocessing",
+        "biomanufacturing", "tissue culture",
+        "plant tissue culture", "biosafety",
+        "biosecurity", "bioethics",
+    ],
+    "zoology": [
+        "zoology", "zoological sciences",
+        "applied zoology", "animal biology",
+        "animal sciences studies",
+        "invertebrate zoology",
+        "vertebrate zoology", "economic zoology",
+        "wildlife zoology",
+        "zoology and fisheries",
+        "zoology and wildlife",
+        "entomology and zoology",
+    ],
+    "botany": [
+        "botany", "plant sciences", "plant science",
+        "plant biology", "applied botany",
+        "economic botany", "systematic botany",
+        "taxonomy", "plant taxonomy",
+        "plant pathology", "plant breeding",
+        "plant breeding and genetics",
+        "plant genetics", "plant ecology",
+        "plant anatomy", "plant morphology",
+        "mycology and plant pathology",
+        "horticultural science",
+    ],
+    "genetics": [
+        "genetics", "genetic", "genetic sciences",
+        "molecular genetics", "human genetics",
+        "medical genetics", "clinical genetics",
+        "population genetics",
+        "evolutionary genetics",
+        "plant and animal genetics",
+        "genetics and genomics",
+        "genomics and genetics",
+        "genetics and biotechnology",
+        "genetics and molecular biology",
+        "cytogenetics", "cyto genetics",
+        "epigenetics",
+        "genetic counseling", "genetic counselling",
+        "cancer genetics", "forensic genetics",
+        "dna technology",
+    ],
+    "environmental science": [
+        "environmental science", "environmental sciences",
+        "environment science", "environmental studies",
+        "environment studies",
+        "environmental management",
+        "environmental management and policy",
+        "environmental policy", "environmental planning",
+        "environmental impact assessment", "eia",
+        "environmental health",
+        "environmental health and safety",
+        "environmental monitoring",
+        "environmental assessment",
+        "environmental protection", "environmental law",
+        "environmental policy and law",
+        "environmental sustainability",
+        "environment and sustainability",
+        "environment and development",
+        "environment and natural resources",
+        "natural resource management",
+        "natural resources management",
+        "natural resources",
+        "natural resource conservation",
+        "conservation", "conservation science",
+        "conservation and biodiversity", "biodiversity",
+        "biodiversity conservation",
+        "climate change", "climate science",
+        "climate change studies",
+        "climate and environment",
+        "climate change and sustainability",
+        "climate change adaptation", "climate policy",
+        "meteorology", "atmospheric science",
+        "atmospheric sciences",
+        "atmospheric and environmental science",
+        "climatology", "global change",
+        "earth and environmental science",
+        "earth and environmental sciences",
+        "ecology and environmental science",
+        "sustainability", "sustainability studies",
+        "sustainability science",
+        "sustainable development",
+        "sustainable development studies",
+        "sustainable development and management",
+        "green economy", "disaster management",
+        "disaster risk reduction",
+        "disaster risk management",
+        "disaster studies", "emergency management",
+        "hazard management",
+    ],
+    "geology": [
+        "geology", "geological sciences",
+        "geological science", "applied geology",
+        "engineering geology", "economic geology",
+        "petroleum geology studies",
+        "structural geology", "sedimentology",
+        "stratigraphy", "paleontology", "palaeontology",
+        "mineralogy", "petrology", "geochemistry",
+        "hydrogeology", "environmental geology",
+        "geology and mining",
+        "geology and geophysics",
+        "geophysics studies", "earth sciences",
+        "earth science", "earth system science",
+        "earth and planetary sciences",
+        "earth and space sciences",
+        "geosciences", "geoscience", "geo-sciences",
+        "seismology", "volcanology", "geohazards",
+        "geotechnology", "geological engineering",
+    ],
+    "geography": [
+        "geography", "geographical sciences",
+        "geographical studies", "physical geography",
+        "human geography",
+        "economic geography studies",
+        "regional geography", "urban geography",
+        "rural geography", "social geography",
+        "cultural geography", "political geography",
+        "historical geography",
+        "environmental geography",
+        "geography and environment",
+        "geography and planning",
+        "geography and geology",
+        "geography and gis",
+        "geography and history",
+        "geography and economics",
+        "geography and regional planning",
+        "geography and urban planning",
+        "geography and development",
+        "applied geography",
+        "quantitative geography", "biogeography",
+        "hydrology and geography",
+        "climatology and geography", "geomorphology",
+    ],
+    "food science and technology": [
+        "food science and technology",
+        "food science", "food technology",
+        "food sciences",
+        "food science & technology",
+        "food science and nutrition",
+        "food science & nutrition",
+        "food and nutrition sciences",
+        "food engineering", "food processing",
+        "food processing technology",
+        "food preservation", "food quality",
+        "food quality assurance",
+        "food quality and safety", "food safety",
+        "food safety and quality",
+        "food safety management",
+        "food microbiology studies",
+        "food analysis",
+        "food biotechnology studies",
+        "food product development",
+        "food manufacturing", "food industry",
+        "dairy science", "dairy technology",
+        "dairy and food technology",
+        "meat science", "meat technology",
+        "fruit and vegetable technology",
+        "cereal technology", "bakery science",
+        "post harvest science",
+        "agro-processing", "agro processing",
+        "agricultural processing",
+    ],
+    "agriculture": [
+        "agriculture", "agri", "agricultural sciences",
+        "agricultural science", "agricultural",
+        "agriculture sciences", "agriculture science",
+        "agricultural studies",
+        "agricultural technology studies",
+        "agricultural extension", "agri extension",
+        "agricultural education",
+        "agricultural development",
+        "agricultural policy",
+        "agronomy", "crop science", "crop sciences",
+        "crop production", "crop management",
+        "crop husbandry", "field crops",
+        "plant production", "horticulture",
+        "horticultural sciences",
+        "horticulture and landscaping",
+        "floriculture", "olericulture", "pomology",
+        "vegetable science", "fruit science",
+        "soil science", "soil sciences",
+        "plant protection", "plant pathology studies",
+        "entomology and plant protection",
+        "agricultural entomology",
+        "plant breeding and genetics studies",
+        "seed science", "seed science and technology",
+        "animal sciences studies",
+        "poultry science", "poultry production",
+        "poultry management", "dairy science studies",
+        "dairy production", "livestock management",
+        "livestock production", "animal nutrition",
+        "animal breeding", "animal breeding and genetics",
+        "meat science studies", "agriculture economics",
+        "agricultural marketing studies",
+        "agricultural business studies",
+        "agribusiness studies",
+        "rural development studies",
+        "rural sociology",
+        "extension education",
+        "agricultural extension education",
+        "agricultural communication",
+        "agriculture and food security",
+        "food security", "food security and agriculture",
+        "sustainable agriculture",
+        "organic agriculture", "organic farming",
+        "precision agriculture studies",
+    ],
+
+    # ---------------------------------------------------------
+    # MEDICAL / HEALTH SCIENCES
+    # ---------------------------------------------------------
+    "medicine": [
+        "medicine", "mbbs", "m.b.b.s", "medical",
+        "doctor of medicine", "md", "m.d",
+        "medical sciences", "medical science",
+        "clinical medicine", "internal medicine",
+        "general medicine",
+        "bachelor of medicine", "bachelor of surgery",
+        "bachelor of medicine and bachelor of surgery",
+        "mbchb", "mb chb", "mb bs",
+    ],
+    "dentistry": [
+        "dentistry", "dental", "dental surgery",
+        "bds", "b.d.s", "doctor of dental surgery",
+        "dental sciences", "dental medicine",
+        "bachelor of dental surgery",
+        "dmd", "d.m.d", "doctor of dental medicine",
+    ],
+    "pharmacy": [
+        "pharmacy", "pharmd", "pharm.d", "pharm d",
+        "doctor of pharmacy",
+        "pharmaceutical sciences",
+        "pharmaceutical science",
+        "pharmaceutics", "pharmacology studies",
+        "clinical pharmacy", "industrial pharmacy",
+        "hospital pharmacy", "community pharmacy",
+        "pharmacy practice", "pharmaceutical technology",
+    ],
+    "nursing": [
+        "nursing", "nurse", "nursing science",
+        "nursing sciences", "bsc nursing",
+        "bsn", "b.s.n", "bs nursing",
+        "msn", "m.s.n", "ms nursing",
+        "registered nurse", "rn",
+        "post rn bsn", "generic bsn",
+        "nursing administration",
+        "nursing education",
+        "community health nursing",
+        "critical care nursing",
+        "pediatric nursing", "paediatric nursing",
+        "mental health nursing",
+        "psychiatric nursing",
+        "midwifery", "obstetric nursing",
+    ],
+    "physical therapy": [
+        "physical therapy", "physiotherapy",
+        "dpt", "d.p.t", "doctor of physical therapy",
+        "bpt", "bachelor of physiotherapy",
+        "bachelor of physical therapy",
+        "bsc physiotherapy",
+        "sports physiotherapy",
+        "orthopedic physiotherapy",
+        "neurological physiotherapy",
+        "cardiopulmonary physiotherapy",
+        "rehabilitation sciences",
+    ],
+    "veterinary medicine": [
+        "veterinary medicine", "veterinary",
+        "dvm", "d.v.m", "doctor of veterinary medicine",
+        "bvsc", "b.v.sc",
+        "bvsc & ah", "bvsc and ah",
+        "bachelor of veterinary science",
+        "veterinary surgery",
+        "veterinary sciences",
+    ],
+    "public health": [
+        "public health", "mph", "m.p.h",
+        "master of public health",
+        "bachelor of public health",
+        "bph", "b.p.h",
+        "community health", "community medicine",
+        "public health sciences", "health sciences",
+        "health science", "health studies",
+        "global health", "international health",
+        "population health", "public health policy",
+        "health policy", "health promotion",
+        "health education", "health administration",
+        "health management",
+        "healthcare management",
+        "healthcare administration",
+        "epidemiology", "biostatistics studies",
+        "environmental health studies",
+        "occupational health",
+        "occupational health and safety studies",
+        "maternal and child health",
+        "reproductive health",
+        "nutrition and dietetics",
+        "nutrition", "dietetics",
+        "human nutrition", "clinical nutrition",
+        "food and nutrition studies",
+    ],
+    "psychology": [
+        "psychology", "psychological sciences",
+        "psychological science", "psych",
+        "applied psychology", "clinical psychology",
+        "counseling psychology",
+        "counselling psychology",
+        "counseling", "counselling",
+        "counseling psychology studies",
+        "counselling psychology studies",
+        "counseling and psychotherapy",
+        "counselling and psychotherapy",
+        "psychotherapy", "psychoanalysis",
+        "behavioral science", "behavioural science",
+        "behavioral sciences", "behavioural sciences",
+        "cognitive science", "cognitive sciences",
+        "cognitive neuroscience",
+        "neuropsychology", "neuro psychology",
+        "developmental psychology",
+        "child psychology", "adolescent psychology",
+        "educational psychology",
+        "school psychology",
+        "industrial psychology",
+        "organizational psychology",
+        "organisational psychology",
+        "industrial and organizational psychology",
+        "industrial/organizational psychology",
+        "social psychology",
+        "personality psychology",
+        "abnormal psychology",
+        "positive psychology",
+        "sports psychology", "health psychology",
+        "forensic psychology",
+        "environmental psychology",
+        "comparative psychology",
+        "evolutionary psychology",
+        "psychometrics studies",
+        "human development", "human development studies",
+        "family studies", "family and consumer sciences",
+    ],
+    "medical laboratory technology": [
+        "medical laboratory technology", "mlt",
+        "bmlt", "b.m.l.t",
+        "bsc mlt", "bsc (mlt)",
+        "bsc medical laboratory technology",
+        "dmlt", "d.m.l.t",
+        "diploma in medical laboratory technology",
+        "medical laboratory sciences",
+        "medical laboratory science",
+        "laboratory sciences", "laboratory science",
+        "clinical laboratory sciences",
+        "clinical laboratory science",
+        "medical technology", "medical technologies",
+        "clinical technology",
+        "biomedical laboratory sciences",
+        "haematology", "hematology",
+        "clinical chemistry",
+        "medical microbiology studies",
+        "histopathology", "cytology",
+    ],
+    "radiologic technology": [
+        "radiologic technology", "radiology",
+        "radiography", "radiologic sciences",
+        "radiologic science",
+        "medical imaging", "medical imaging sciences",
+        "medical imaging technology",
+        "radiological technology",
+        "radiological sciences",
+        "diagnostic imaging",
+        "diagnostic radiography",
+        "therapeutic radiography",
+        "radiation therapy",
+        "nuclear medicine technology",
+        "ultrasound", "sonography",
+        "mri technology", "ct technology",
+    ],
+
+    # ---------------------------------------------------------
+    # LAW / HUMANITIES / SOCIAL SCIENCES
+    # ---------------------------------------------------------
+    "law": [
+        "law", "laws", "legal studies", "legal",
+        "legal sciences", "legal science",
+        "llb", "ll.b", "ll.b.",
+        "bachelor of laws",
+        "llm", "ll.m", "ll.m.",
+        "master of laws",
+        "bar at law", "barrister",
+        "barrister at law", "bl", "b.l",
+        "constitutional law", "criminal law",
+        "civil law", "corporate law",
+        "commercial law", "international law",
+        "public international law",
+        "private international law",
+        "human rights law",
+        "islamic law", "shariah law",
+        "family law", "property law",
+        "contract law", "company law",
+        "intellectual property law",
+        "ip law", "tax law studies",
+        "environmental law studies",
+        "labour law studies", "labor law studies",
+    ],
+    "education": [
+        "education", "education studies",
+        "educational studies", "educational sciences",
+        "education sciences", "teaching",
+        "b.ed", "b.ed.", "bed",
+        "bachelor of education",
+        "m.ed", "m.ed.", "med",
+        "master of education",
+        "m.phil education",
+        "m.phil. education",
+        "phd education",
+        "ph.d education",
+        "teacher education",
+        "primary education", "elementary education",
+        "secondary education",
+        "early childhood education", "ece",
+        "special education", "special needs education",
+        "inclusive education", "special education needs",
+        "sen", "curriculum studies",
+        "curriculum and instruction",
+        "instructional design",
+        "instructional technology",
+        "educational technology",
+        "educational leadership",
+        "educational administration",
+        "educational management",
+        "educational policy",
+        "education policy studies",
+        "comparative education",
+        "international education",
+        "educational psychology studies",
+        "pedagogy", "didactics",
+        "teaching english as a foreign language", "tefl",
+        "teaching english as a second language", "tesl",
+        "tesol", "teaching of english",
+        "education leadership and management",
+        "stem education",
+    ],
+    "social work": [
+        "social work", "social welfare",
+        "social sciences studies", "social services",
+        "bsw", "b.s.w", "bachelor of social work",
+        "msw", "m.s.w", "master of social work",
+        "community development",
+        "community development studies",
+        "community services", "human services",
+        "social administration", "social policy",
+        "social policy and administration",
+        "social policy and social work",
+        "social welfare policy",
+        "child welfare", "child protection",
+        "family services",
+        "medical social work",
+        "clinical social work",
+        "gerontological social work",
+        "school social work",
+    ],
+    "sociology": [
+        "sociology", "sociological studies",
+        "social sciences", "social science",
+        "applied sociology",
+        "urban sociology", "rural sociology studies",
+        "political sociology",
+        "economic sociology",
+        "sociology of education",
+        "sociology of health",
+        "medical sociology",
+        "family sociology",
+        "criminology",
+        "criminology and criminal justice",
+        "criminal justice", "criminal justice studies",
+        "criminal law studies",
+        "sociology and anthropology",
+        "anthropology", "social anthropology",
+        "cultural anthropology",
+        "physical anthropology",
+        "biological anthropology",
+        "archaeology", "applied anthropology",
+    ],
+    "political science": [
+        "political science", "political sciences",
+        "political studies", "politics",
+        "government studies",
+        "government and politics",
+        "comparative politics",
+        "international relations", "ir",
+        "international studies",
+        "international affairs",
+        "international politics",
+        "global studies", "global affairs",
+        "diplomacy", "diplomatic studies",
+        "strategic studies",
+        "defence and strategic studies",
+        "defense and strategic studies",
+        "peace and conflict studies",
+        "conflict resolution",
+        "conflict and peace studies",
+        "political theory", "political economy studies",
+        "public policy studies",
+        "public administration studies",
+        "international political economy studies",
+        "area studies",
+        "middle east studies",
+        "south asian studies",
+        "asian studies",
+        "american studies",
+        "european studies",
+    ],
+    "history": [
+        "history", "historical studies",
+        "historical sciences", "history and politics",
+        "history and international relations",
+        "history and political science",
+        "modern history", "ancient history",
+        "medieval history", "world history",
+        "global history", "islamic history",
+        "history of islam",
+        "south asian history",
+        "pakistan studies", "pakistan history",
+        "history and archaeology",
+        "art history", "history of art",
+    ],
+    "philosophy": [
+        "philosophy", "philosophical studies",
+        "philosophy of science",
+        "philosophy of mind",
+        "philosophy of language",
+        "philosophy of religion",
+        "moral philosophy", "ethics",
+        "applied ethics", "bioethics studies",
+        "logic", "symbolic logic",
+        "epistemology", "metaphysics",
+        "political philosophy",
+        "philosophy politics and economics studies",
+        "ppe studies",
+    ],
+    "english": [
+        "english", "english literature",
+        "english language", "english studies",
+        "english language and literature",
+        "english language and linguistics",
+        "english literature and linguistics",
+        "applied linguistics",
+        "linguistics", "language studies",
+        "modern languages", "languages",
+        "foreign languages",
+        "english and literature",
+        "literature", "comparative literature",
+        "literary studies", "literary criticism",
+        "creative writing",
+        "english language teaching", "elt",
+        "teaching english",
+    ],
+    "urdu": [
+        "urdu", "urdu literature", "urdu language",
+        "urdu studies",
+        "urdu language and literature",
+        "urdu language and linguistics",
+    ],
+    "islamic studies": [
+        "islamic studies", "islamic sciences",
+        "islamic studies and arabic",
+        "islamic studies and shariah",
+        "islamic studies and history",
+        "islamic studies and culture",
+        "islamic studies and civilization",
+        "islamic thought", "islamic thought and civilization",
+        "islamic civilization",
+        "islamic culture and civilization",
+        "islamic history studies",
+        "islamic theology", "aqeedah", "aqidah",
+        "fiqh", "usul al-fiqh", "usul al fiqh",
+        "hadith", "hadith sciences",
+        "quranic studies", "quran and tafsir",
+        "tafsir", "tafseer",
+        "arabic", "arabic language",
+        "arabic language and literature",
+        "arabic studies",
+        "shariah", "shariah and law",
+        "shariah studies",
+        "islamic jurisprudence",
+        "comparative religion",
+        "religious studies",
+        "religious studies and theology",
+        "theology",
+        "islamic banking and finance studies",
+    ],
+    "journalism and mass communication": [
+        "journalism", "mass communication",
+        "mass communications",
+        "media studies", "media and communication",
+        "media and communications",
+        "communication studies",
+        "communication and media studies",
+        "communication sciences",
+        "communication science",
+        "media science", "media sciences",
+        "media and journalism",
+        "journalism and mass communication",
+        "journalism and media studies",
+        "journalism and broadcasting",
+        "broadcast journalism",
+        "print journalism", "digital journalism",
+        "online journalism", "multimedia journalism",
+        "broadcasting", "broadcast media",
+        "broadcasting and journalism",
+        "electronic media",
+        "print media", "digital media",
+        "media production", "media management",
+        "advertising and public relations",
+        "advertising studies",
+        "public relations", "pr",
+        "public relations and advertising",
+        "strategic communication",
+        "corporate communication",
+        "film studies", "film and media",
+        "cinema studies", "film production",
+        "television production",
+        "documentary film",
+        "film and television",
+        "media arts",
+    ],
+    "international relations": [
+        "international relations", "ir studies",
+        "international affairs studies",
+        "international politics studies",
+        "diplomacy studies",
+        "diplomatic studies",
+        "global affairs studies",
+        "international studies",
+        "foreign affairs",
+        "foreign policy",
+        "security studies",
+        "international security",
+        "peace studies", "conflict studies",
+        "peace and conflict studies",
+        "strategic studies",
+        "defence studies", "defense studies",
+    ],
+
+    # ---------------------------------------------------------
+    # ARTS / DESIGN / HUMANITIES
+    # ---------------------------------------------------------
+    "fine arts": [
+        "fine arts", "fine art", "visual arts",
+        "visual art", "studio art", "studio arts",
+        "bfa", "b.f.a", "mfa", "m.f.a",
+        "bachelor of fine arts",
+        "master of fine arts",
+        "painting", "sculpture", "printmaking",
+        "drawing", "ceramics", "photography",
+        "digital arts", "digital art",
+        "visual arts and design",
+        "art and design", "arts and design",
+        "applied arts", "creative arts",
+    ],
+    "design": [
+        "design", "design studies", "design and visual arts",
+        "design and technology",
+        "graphic design", "graphic arts",
+        "communication design",
+        "visual communication",
+        "visual communication design",
+        "digital design", "interaction design",
+        "ux design", "ui design", "ux/ui design",
+        "ui/ux", "user experience design",
+        "user interface design",
+        "user experience", "user interface",
+        "product design", "industrial design",
+        "interior design", "interior architecture",
+        "furniture design", "fashion design",
+        "textile design", "surface design",
+        "jewellery design", "jewelry design",
+        "game design studies",
+        "multimedia design",
+        "web design", "web design and development",
+        "set design", "theatre design",
+        "design management", "design thinking",
+        "design innovation",
+    ],
+    "fashion": [
+        "fashion", "fashion design",
+        "fashion design and technology",
+        "fashion technology",
+        "fashion and textile design",
+        "fashion and textiles",
+        "fashion marketing studies",
+        "fashion merchandising studies",
+        "fashion management studies",
+        "fashion business studies",
+        "fashion communication",
+        "fashion styling", "styling",
+        "apparel design",
+        "garment design",
+        "textile and fashion design",
+        "fashion and apparel design",
+        "costume design",
+    ],
+    "music": [
+        "music", "music studies", "musicology",
+        "music theory", "music composition",
+        "composition", "performance",
+        "music performance",
+        "bmus", "b.mus", "bachelor of music",
+        "mmus", "m.mus", "master of music",
+        "music education",
+        "music production", "music technology",
+        "sound engineering", "audio engineering",
+        "sound production",
+        "audio production",
+        "recording arts",
+        "music business",
+        "music industry",
+        "ethnomusicology",
+        "conducting", "orchestral conducting",
+        "choral conducting",
+    ],
+    "theater and performing arts": [
+        "theater", "theatre", "theatre arts",
+        "theater arts", "performing arts",
+        "drama", "dramatic arts",
+        "dramatic studies", "drama and theater",
+        "drama and theatre",
+        "acting", "acting and performance",
+        "performance studies",
+        "theatre studies", "theater studies",
+        "dance", "dance studies",
+        "choreography", "performing arts studies",
+        "stage management",
+        "technical theatre",
+        "theater production",
+    ],
+}
+
+
+# Build reverse lookups
+_DEGREE_ALIAS_MAP = {}
+for _canonical, _aliases in DEGREE_LEVELS.items():
+    for _alias in _aliases:
+        _DEGREE_ALIAS_MAP[_alias.lower().strip()] = _canonical
+
+_FIELD_ALIAS_MAP = {}
+for _canonical, _aliases in FIELD_OF_STUDY_ALIASES.items():
+    for _alias in _aliases:
+        _FIELD_ALIAS_MAP[_alias.lower().strip()] = _canonical
+
+
+# ============================================================
+# MAIN ENTRY POINT
+# ============================================================
+def evaluate_application(application_id: int) -> dict:
+    """
+    Full pipeline:
+      1. Fetch Application + related (candidate, job, resume)
+      2. Parse resume file → CV JSON
+      3. Compute 3 scores
+      4. Compute weighted total
+      5. Save/update ResumeMatching row
+      6. Return dict (for view to send as JSON)
+    """
+
+    # ---------- 1. Fetch application ----------
+    try:
+        application = Application.objects.select_related(
+            "candidate__user",
+            "job",
+            "resume",
+        ).get(pk=application_id)
+    except Application.DoesNotExist:
+        raise ValueError(f"Application #{application_id} not found")
+
+    job = application.job
+    resume = application.resume
+
+    if not resume or not resume.file_path:
+        raise ValueError("This application has no resume attached")
+
+    # ---------- 2. Parse CV ----------
+    parsed_cv = _parse_resume(resume)
+
+    # ---------- 3. Compute scores ----------
+    skills_result = _score_skills(parsed_cv, job)
+    exp_result = _score_experience(parsed_cv, job)
+    qual_result = _score_qualification(parsed_cv, job)
+
+    # ---------- 4. Weighted total ----------
+    total_score = round(
+        skills_result["score"] * WEIGHTS["skills"]
+        + exp_result["score"] * WEIGHTS["experience"]
+        + qual_result["score"] * WEIGHTS["qualification"],
+        2,
+    )
+
+    # ---------- 5. Save ResumeMatching ----------
+    resume_matching, _created = ResumeMatching.objects.update_or_create(
+        application=application,
+        defaults={
+            "skills_score": skills_result["score"],
+            "experience_score": exp_result["score"],
+            "qualification_score": qual_result["score"],
+            "total_score": total_score,
+            "status": "completed",
+            "evaluated_at": timezone.now(),
+        },
+    )
+
+    # ---------- 6. Build response ----------
+    minimum_score = float(job.minimum_score or 0)
+    verdict = "shortlist" if total_score >= minimum_score else "reject"
+
+    return {
+        "matching_id": resume_matching.matching_id,
+        "application_id": application.application_id,
+        "candidate_name": application.candidate.user.full_name,
+        "job_title": job.job_title,
+        "skills_score": skills_result["score"],
+        "experience_score": exp_result["score"],
+        "qualification_score": qual_result["score"],
+        "total_score": total_score,
+        "minimum_score": minimum_score,
+        "verdict": verdict,
+        "details": {
+            "matched_skills": skills_result["matched"],
+            "missing_skills": skills_result["missing"],
+            "candidate_experience": exp_result["candidate_exp"],
+            "required_experience": exp_result["required_exp"],
+            "matched_qualifications": qual_result["matched"],
+            "missing_qualifications": qual_result["missing"],
+        },
+    }
+
+
+# ============================================================
+# HELPERS — canonicalization
+# ============================================================
+def _canonical_skill(skill: str) -> str:
+    """
+    Convert a skill name to its canonical form.
+
+    Examples:
+        "JS"          -> "javascript"
+        "React.js"    -> "react"
+        "K8s"         -> "kubernetes"
+        "Unknown"     -> "unknown"  (fallback: lowercase, spaces stripped)
+    """
+    if not skill:
+        return ""
+
+    key = skill.lower().strip()
+
+    # 1. Exact alias match
+    if key in _SKILL_ALIAS_MAP:
+        return _SKILL_ALIAS_MAP[key]
+
+    # 2. Normalized match (remove spaces/dots/underscores/hyphens)
+    key_norm = re.sub(r"[\s._-]+", "", key)
+    for alias, canonical in _SKILL_ALIAS_MAP.items():
+        alias_norm = re.sub(r"[\s._-]+", "", alias)
+        if alias_norm == key_norm:
+            return canonical
+
+    # 3. Fallback: normalized form itself
+    return key_norm
+
+
+def _canonical_degree(degree: str) -> str:
+    """
+    Convert a degree name to its canonical level.
+    Returns one of: postdoc, phd, mphil, masters, pg_diploma,
+    bachelors, diploma, intermediate, certificate, matric, or "" if unknown.
+
+    Examples:
+        "BSCS"     -> "bachelors"
+        "BSc"      -> "bachelors"
+        "MS"       -> "masters"
+        "PhD"      -> "phd"
+    """
+    if not degree:
+        return ""
+
+    key = degree.lower().strip()
+    key = re.sub(r"[.,;:]+$", "", key)      # strip trailing punctuation
+    key = re.sub(r"\s+", " ", key)          # normalize spaces
+
+    # 1. Exact alias match
+    if key in _DEGREE_ALIAS_MAP:
+        return _DEGREE_ALIAS_MAP[key]
+
+    # 2. Normalized match (no spaces/dots)
+    key_norm = re.sub(r"[\s._-]+", "", key)
+    for alias, canonical in _DEGREE_ALIAS_MAP.items():
+        alias_norm = re.sub(r"[\s._-]+", "", alias)
+        if alias_norm == key_norm:
+            return canonical
+
+    # 3. Substring match fallback (e.g. "BS Computer Science" contains "bs")
+    for alias, canonical in _DEGREE_ALIAS_MAP.items():
+        if len(alias) >= 2 and re.search(rf"\b{re.escape(alias)}\b", key):
+            return canonical
+
+    return ""
+
+
+def _canonical_field(field: str) -> str:
+    """
+    Convert a field of study to canonical form.
+
+    Examples:
+        "CS"                  -> "computer science"
+        "CompSci"             -> "computer science"
+        "Software Engineering"-> "software engineering"
+    """
+    if not field:
+        return ""
+
+    key = field.lower().strip()
+    key = re.sub(r"[.,;:]+$", "", key)
+    key = re.sub(r"\s+", " ", key)
+
+    # 1. Exact alias match
+    if key in _FIELD_ALIAS_MAP:
+        return _FIELD_ALIAS_MAP[key]
+
+    # 2. Normalized match
+    key_norm = re.sub(r"[\s._-]+", "", key)
+    for alias, canonical in _FIELD_ALIAS_MAP.items():
+        alias_norm = re.sub(r"[\s._-]+", "", alias)
+        if alias_norm == key_norm:
+            return canonical
+
+    return key
+
+
+# ============================================================
+# HELPERS — parsing
+# ============================================================
+def _parse_resume(resume) -> dict:
+    """
+    Resume file ko parse karo (temp file ke through).
+    parse_cv() path expect karta hai.
+    """
+    # resume.file_path me "/media/resumes/xyz.pdf" hai
+    relative = resume.file_path.replace(settings.MEDIA_URL, "", 1)
+    absolute_path = os.path.join(settings.MEDIA_ROOT, relative)
+
+    if not os.path.exists(absolute_path):
+        raise ValueError(f"Resume file not found on disk: {absolute_path}")
+
+    parsed = parse_cv(absolute_path)
+
+    # Parser metadata me file_name override (tmp name ki jagah real name)
+    if isinstance(parsed, dict) and "metadata" in parsed:
+        parsed["metadata"]["file_name"] = resume.file_name
+
+    return parsed
+
+
+# ============================================================
+# HELPERS — scoring
+# ============================================================
+def _score_skills(parsed_cv: dict, job) -> dict:
+    """
+    Skills score = (matched / required) * 100
+    Uses alias canonicalization (JS → JavaScript, K8s → Kubernetes, etc.)
+    """
+    candidate_skills = {
+        _canonical_skill(s)
+        for s in parsed_cv.get("skills", {}).get("all_skills", [])
+        if s and s.strip()
+    }
+
+    required_skills = {
+        _canonical_skill(js.skill.skill_name)
+        for js in job.skills.select_related("skill").all()
+        if js.skill and js.skill.skill_name
+    }
+
+    # Job me koi skill nahi → neutral full score
+    if not required_skills:
+        return {"score": 100.0, "matched": [], "missing": []}
+
+    matched = candidate_skills & required_skills
+    missing = required_skills - candidate_skills
+
+    score = round((len(matched) / len(required_skills)) * 100, 2)
+
+    return {
+        "score": score,
+        "matched": sorted(matched),
+        "missing": sorted(missing),
+    }
+
+
+def _score_experience(parsed_cv: dict, job) -> dict:
+    """
+    Experience score = min(100, cv_exp / required_exp * 100)
+    """
+    candidate_exp = float(parsed_cv.get("total_experience_years") or 0)
+    required_exp = float(job.required_exp or 0)
+
+    if required_exp <= 0:
+        return {
+            "score": 100.0,
+            "candidate_exp": candidate_exp,
+            "required_exp": required_exp,
+        }
+
+    score = min(100.0, round((candidate_exp / required_exp) * 100, 2))
+
+    return {
+        "score": score,
+        "candidate_exp": candidate_exp,
+        "required_exp": required_exp,
+    }
+
+
+def _score_qualification(parsed_cv: dict, job) -> dict:
+    """
+    Qualification score.
+
+    Logic:
+      1. For each required qualification, extract required degree level + field.
+      2. For each CV education, extract candidate degree level + field.
+      3. A required qualification is "matched" if:
+         - Candidate has a degree at OR ABOVE required level (hierarchy), AND
+         - Candidate's field matches OR required field is unspecified/empty
+      4. Score = (matched / required) * 100
+    """
+    # ---- Extract candidate education (canonical) ----
+    candidate_degrees = []   # list of dicts: {"level": str, "rank": int, "field": str}
+    for edu in parsed_cv.get("education", []):
+        raw_degree = edu.get("degree") or ""
+        raw_field = edu.get("field_of_study") or ""
+
+        level = _canonical_degree(raw_degree)
+        field = _canonical_field(raw_field)
+
+        # Sometimes parser puts combined text in degree like "BS Computer Science"
+        # Try to split
+        if not level and raw_degree:
+            level = _canonical_degree(raw_degree)
+        if not field and raw_degree:
+            field = _canonical_field(raw_degree)
+
+        if level or field:
+            candidate_degrees.append({
+                "level": level,
+                "rank": DEGREE_RANK.get(level, 0),
+                "field": field,
+            })
+
+    # ---- Extract required qualifications (canonical) ----
+    required_quals = []
+    for jq in job.qualifications.select_related("qualification").all():
+        raw_name = jq.qualification.qualification_name if jq.qualification else ""
+        if not raw_name:
+            continue
+
+        level = _canonical_degree(raw_name)
+        field = _canonical_field(raw_name)
+
+        required_quals.append({
+            "name": raw_name,
+            "level": level,
+            "rank": DEGREE_RANK.get(level, 0),
+            "field": field,
+        })
+
+    # No qualifications required → neutral 100%
+    if not required_quals:
+        return {"score": 100.0, "matched": [], "missing": []}
+
+    # ---- Match each required qualification ----
+    matched = []
+    missing = []
+
+    for req in required_quals:
+        matched_flag = False
+
+        for cand in candidate_degrees:
+            # Degree level check:
+            # - if required level is specified, candidate rank must be >= req rank
+            # - if required level not specified, skip level check
+            level_ok = True
+            if req["rank"] > 0:
+                level_ok = cand["rank"] >= req["rank"]
+
+            # Field check:
+            # - if required field is specified, must match
+            # - if required field not specified, skip field check
+            field_ok = True
+            if req["field"]:
+                field_ok = (cand["field"] == req["field"])
+
+            if level_ok and field_ok:
+                matched_flag = True
+                break
+
+        if matched_flag:
+            matched.append(req["name"])
+        else:
+            missing.append(req["name"])
+
+    score = round((len(matched) / len(required_quals)) * 100, 2)
+
+    return {
+        "score": score,
+        "matched": sorted(matched),
+        "missing": sorted(missing),
+    }
